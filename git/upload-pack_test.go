@@ -1,6 +1,8 @@
 package git_test
 
 import (
+	"errors"
+
 	"github.com/lucas-clemente/git-cr/git"
 
 	. "github.com/onsi/ginkgo"
@@ -8,12 +10,20 @@ import (
 )
 
 type sampleDecoder struct {
-	data []byte
+	data [][]byte
 }
 
 func (d *sampleDecoder) Decode(b *[]byte) error {
-	*b = d.data
+	if len(d.data) == 0 {
+		return errors.New("EOF")
+	}
+	*b = d.data[0]
+	d.data = d.data[1:]
 	return nil
+}
+
+func (d *sampleDecoder) setData(data ...[]byte) {
+	d.data = data
 }
 
 type sampleEncoder struct {
@@ -40,26 +50,26 @@ var _ = Describe("upload-pack", func() {
 
 	Context("decoding client handshake", func() {
 		It("errors on invalid handshake", func() {
-			decoder.data = []byte("")
+			decoder.setData([]byte(""))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack ")
+			decoder.setData([]byte("git-upload-pack "))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack foo")
+			decoder.setData([]byte("git-upload-pack foo"))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack \000")
+			decoder.setData([]byte("git-upload-pack \000"))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack foo\000")
+			decoder.setData([]byte("git-upload-pack foo\000"))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack foo\000host=")
+			decoder.setData([]byte("git-upload-pack foo\000host="))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack \000host=foo")
+			decoder.setData([]byte("git-upload-pack \000host=foo"))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.data = []byte("git-upload-pack \000host=")
+			decoder.setData([]byte("git-upload-pack \000host="))
 			Ω(handler.ParseHandshake()).Should(Equal(git.ErrorInvalidHandshake))
 		})
 
 		It("gets repo and host", func() {
-			decoder.data = []byte("git-upload-pack foo\000host=bar")
+			decoder.setData([]byte("git-upload-pack foo\000host=bar"))
 			Ω(handler.ParseHandshake()).ShouldNot(HaveOccurred())
 			Ω(handler.Host).Should(Equal("bar"))
 			Ω(handler.Repo).Should(Equal("foo"))
@@ -79,6 +89,21 @@ var _ = Describe("upload-pack", func() {
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("bar foo")))
 			Ω(encoder.data[1]).Should(BeNil())
+		})
+	})
+
+	Context("reading client wants", func() {
+		It("receives wants", func() {
+			decoder.setData(
+				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
+				[]byte("want f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
+				nil,
+			)
+			wants, err := handler.ReceiveClientWants()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(wants).Should(HaveLen(2))
+			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+			Ω(wants[1]).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 	})
 })

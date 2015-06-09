@@ -8,6 +8,8 @@ import (
 var (
 	// ErrorInvalidHandshake occurs if the client presents an invalid handshake
 	ErrorInvalidHandshake = errors.New("invalid handshake from client")
+	// ErrorInvalidWantLine occurs if the client sends an invalid want line
+	ErrorInvalidWantLine = errors.New("invalid `want` line sent by client")
 )
 
 // UploadPackHandler handles git fetch / pull
@@ -69,4 +71,32 @@ func (h *UploadPackHandler) SendRefs(refs []Ref) error {
 	}
 
 	return h.out.Encode(nil)
+}
+
+// ReceiveClientWants receives the requested refs from the client
+func (h *UploadPackHandler) ReceiveClientWants() ([]string, error) {
+	refs := []string{}
+	var line []byte
+	for {
+		if err := h.in.Decode(&line); err != nil {
+			return nil, err
+		}
+
+		if line == nil {
+			break
+		}
+
+		if !bytes.HasPrefix(line, []byte("want ")) {
+			return nil, ErrorInvalidWantLine
+		}
+
+		line = line[5:]
+
+		if nullPos := bytes.IndexByte(line, 0); nullPos != -1 {
+			line = line[0:nullPos]
+		}
+
+		refs = append(refs, string(line))
+	}
+	return refs, nil
 }
