@@ -62,5 +62,11 @@ func (h *UploadPackHandler) ParseHandshake() error {
 
 // SendRefs sends the given references to the client
 func (h *UploadPackHandler) SendRefs(refs []Ref) error {
-	return errors.New("not implemented")
+	for _, r := range refs {
+		if err := h.out.Encode([]byte(r.Sha1 + " " + r.Name)); err != nil {
+			return err
+		}
+	}
+
+	return h.out.Encode(nil)
 }
