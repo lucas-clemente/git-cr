@@ -105,5 +105,16 @@ var _ = Describe("upload-pack", func() {
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
 			Ω(wants[1]).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
+
+		It("handles client capabilities", func() {
+			decoder.setData(
+				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea\000foobar"),
+				nil,
+			)
+			wants, err := handler.ReceiveClientWants()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(wants).Should(HaveLen(1))
+			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+		})
 	})
 })
