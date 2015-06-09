@@ -35,17 +35,41 @@ func (d *sampleEncoder) Encode(b []byte) error {
 	return nil
 }
 
+type sampleDelta struct {
+	from string
+	to   string
+}
+
+type sampleBackend struct {
+	deltas []*sampleDelta
+}
+
+func (b *sampleBackend) FindDelta(from, to string) (git.Delta, error) {
+	for _, d := range b.deltas {
+		if d.from == from && d.to == to {
+			return d, nil
+		}
+	}
+	return nil, nil
+}
+
+func (b *sampleBackend) DeltaFromZero(to string) (git.Delta, error) {
+	return &sampleDelta{from: "", to: to}, nil
+}
+
 var _ = Describe("upload-pack", func() {
 	var (
 		decoder *sampleDecoder
 		encoder *sampleEncoder
+		backend *sampleBackend
 		handler *git.UploadPackHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
-		handler = git.NewUploadPackHandler(encoder, decoder)
+		backend = &sampleBackend{deltas: []*sampleDelta{}}
+		handler = git.NewUploadPackHandler(encoder, decoder, backend)
 	})
 
 	Context("decoding client handshake", func() {
@@ -115,6 +139,125 @@ var _ = Describe("upload-pack", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(wants).Should(HaveLen(1))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+		})
+	})
+
+	Context("negotiating packfiles", func() {
+		It("handles full deltas", func() {
+			decoder.setData(
+				[]byte("have foobar"),
+				[]byte("done"),
+			)
+			wants := []string{"another"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(1))
+			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(1))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal(""))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("another"))
+		})
+
+		It("handles intermediate flushes", func() {
+			decoder.setData(
+				[]byte("have foobar"),
+				nil,
+				[]byte("have foobar"),
+				[]byte("done"),
+			)
+			wants := []string{"another"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(2))
+			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(1))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal(""))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("another"))
+		})
+
+		It("handles single have with delta", func() {
+			backend.deltas = []*sampleDelta{
+				&sampleDelta{from: "foobar", to: "foobaz"},
+			}
+			decoder.setData(
+				[]byte("have foobar"),
+				[]byte("done"),
+			)
+			wants := []string{"foobaz"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(2))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(1))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+		})
+
+		It("handles single have with delta and followup haves", func() {
+			backend.deltas = []*sampleDelta{
+				&sampleDelta{from: "foobar", to: "foobaz"},
+			}
+			decoder.setData(
+				[]byte("have foobar"),
+				[]byte("have somethingelse"),
+				[]byte("done"),
+			)
+			wants := []string{"foobaz"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(3))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK somethingelse ready")))
+			Ω(encoder.data[2]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(1))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+		})
+
+		It("handles single have with delta and irrelevant haves", func() {
+			backend.deltas = []*sampleDelta{
+				&sampleDelta{from: "foobar", to: "foobaz"},
+			}
+			decoder.setData(
+				[]byte("have somethingelse"),
+				[]byte("have foobar"),
+				[]byte("done"),
+			)
+			wants := []string{"foobaz"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(2))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(1))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+		})
+
+		It("handles multiple wants", func() {
+			backend.deltas = []*sampleDelta{
+				&sampleDelta{from: "a1", to: "a2"},
+				&sampleDelta{from: "b1", to: "b2"},
+			}
+			decoder.setData(
+				[]byte("have a1"),
+				[]byte("have b1"),
+				[]byte("done"),
+			)
+			wants := []string{"a2", "b2"}
+			deltas, err := handler.HandleClientHaves(wants)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(3))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK a1 common")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK b1 ready")))
+			Ω(encoder.data[2]).Should(Equal([]byte("NACK")))
+			Ω(deltas).Should(HaveLen(2))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("a1"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("a2"))
+			Ω(deltas[1].(*sampleDelta).from).Should(Equal("b1"))
+			Ω(deltas[1].(*sampleDelta).to).Should(Equal("b2"))
 		})
 	})
 })

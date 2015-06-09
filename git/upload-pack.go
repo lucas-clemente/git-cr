@@ -5,11 +5,15 @@ import (
 	"errors"
 )
 
+const capabilities = "multi_ack_detailed"
+
 var (
 	// ErrorInvalidHandshake occurs if the client presents an invalid handshake
 	ErrorInvalidHandshake = errors.New("invalid handshake from client")
 	// ErrorInvalidWantLine occurs if the client sends an invalid want line
 	ErrorInvalidWantLine = errors.New("invalid `want` line sent by client")
+	// ErrorInvalidHaveLine occurs if the client sends an invalid have line
+	ErrorInvalidHaveLine = errors.New("invalid `have` line sent by client")
 )
 
 // UploadPackHandler handles git fetch / pull
@@ -19,13 +23,16 @@ type UploadPackHandler struct {
 
 	out Encoder
 	in  Decoder
+
+	backend Backend
 }
 
 // NewUploadPackHandler makes a handler for a fetch/pull with the handshake line
-func NewUploadPackHandler(out Encoder, in Decoder) *UploadPackHandler {
+func NewUploadPackHandler(out Encoder, in Decoder, backend Backend) *UploadPackHandler {
 	return &UploadPackHandler{
-		out: out,
-		in:  in,
+		out:     out,
+		in:      in,
+		backend: backend,
 	}
 }
 
@@ -99,4 +106,71 @@ func (h *UploadPackHandler) ReceiveClientWants() ([]string, error) {
 		refs = append(refs, string(line))
 	}
 	return refs, nil
+}
+
+// HandleClientHaves receives the client's haves and uses the backend
+// to calculate the deltas that should be sent to the client
+func (h *UploadPackHandler) HandleClientHaves(wants []string) ([]Delta, error) {
+	// multi_ack_detailed implementation
+	var line []byte
+	deltas := []Delta{}
+
+	unfulfilledWants := map[string]bool{}
+	for _, w := range wants {
+		unfulfilledWants[w] = true
+	}
+
+	for {
+		if err := h.in.Decode(&line); err != nil {
+			return nil, err
+		}
+
+		if line == nil {
+			h.out.Encode([]byte("NACK"))
+			continue
+		}
+
+		if bytes.Equal(line, []byte("done")) {
+			h.out.Encode([]byte("NACK"))
+			break
+		}
+
+		if !bytes.HasPrefix(line, []byte("have ")) {
+			return nil, ErrorInvalidHaveLine
+		}
+		line = line[5:]
+
+		have := string(line)
+
+		// Check each unfulfilled want
+		for want := range unfulfilledWants {
+			delta, err := h.backend.FindDelta(have, want)
+			if err != nil {
+				return nil, err
+			}
+			if delta != nil {
+				delete(unfulfilledWants, want)
+				deltas = append(deltas, delta)
+
+				if len(unfulfilledWants) != 0 {
+					h.out.Encode([]byte("ACK " + have + " common"))
+				}
+			}
+		}
+
+		if len(unfulfilledWants) == 0 {
+			h.out.Encode([]byte("ACK " + have + " ready"))
+		}
+	}
+
+	// Left-over wants need to be delta'd from the beginning
+	for w := range unfulfilledWants {
+		delta, err := h.backend.DeltaFromZero(w)
+		if err != nil {
+			return nil, err
+		}
+		deltas = append(deltas, delta)
+	}
+
+	return deltas, nil
 }
