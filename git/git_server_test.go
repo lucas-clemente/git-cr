@@ -309,4 +309,39 @@ var _ = Describe("git server", func() {
 			Ω(encoder.data[1][1]).Should(Equal(data[65519]))
 		})
 	})
+
+	Context("receiving push refs", func() {
+		It("receives creates", func() {
+			decoder.setData([]byte("0000000000000000000000000000000000000000 f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master"), nil)
+			refs, err := handler.ReceivePushRefs()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+				Name:  "refs/heads/master",
+				OldID: "",
+				NewID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+			}}))
+		})
+
+		It("receives updates", func() {
+			decoder.setData([]byte("30f79bec32243c31dd91a05c0ad7b80f1e301aea f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master"), nil)
+			refs, err := handler.ReceivePushRefs()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+				Name:  "refs/heads/master",
+				OldID: "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
+				NewID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+			}}))
+		})
+
+		It("receives deletes", func() {
+			decoder.setData([]byte("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 0000000000000000000000000000000000000000 refs/heads/master"), nil)
+			refs, err := handler.ReceivePushRefs()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+				Name:  "refs/heads/master",
+				OldID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				NewID: "",
+			}}))
+		})
+	})
 })

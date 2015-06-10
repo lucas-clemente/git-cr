@@ -16,6 +16,8 @@ var (
 	ErrorInvalidWantLine = errors.New("invalid `want` line sent by client")
 	// ErrorInvalidHaveLine occurs if the client sends an invalid have line
 	ErrorInvalidHaveLine = errors.New("invalid `have` line sent by client")
+	// ErrorInvalidPushRefsLine occurs if the client sends an invalid line during ref update
+	ErrorInvalidPushRefsLine = errors.New("invalid line sent by client during ref update")
 )
 
 // A GitOperation can either be a pull or push
@@ -218,4 +220,46 @@ func (h *GitServer) SendPackfile(r io.Reader) error {
 		}
 	}
 	return nil
+}
+
+// ReceivePushRefs receives the references to be updates in a push from the client
+func (h *GitServer) ReceivePushRefs() ([]RefUpdate, error) {
+	var line []byte
+	refs := []RefUpdate{}
+	for {
+		if err := h.in.Decode(&line); err != nil {
+			return nil, err
+		}
+
+		if line == nil {
+			break
+		}
+
+		parts := bytes.Split(line, []byte(" "))
+		if len(parts) != 3 {
+			return nil, ErrorInvalidPushRefsLine
+		}
+
+		name := string(parts[2])
+		oldID := string(parts[0])
+		if isNullID(oldID) {
+			oldID = ""
+		}
+		newID := string(parts[1])
+		if isNullID(newID) {
+			newID = ""
+		}
+
+		refs = append(refs, RefUpdate{Name: name, OldID: oldID, NewID: newID})
+	}
+	return refs, nil
+}
+
+func isNullID(id string) bool {
+	for _, c := range id {
+		if c != '0' {
+			return false
+		}
+	}
+	return true
 }
