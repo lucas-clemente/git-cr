@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 )
 
 const pullCapabilities = "multi_ack_detailed side-band-64k thin-pack"
@@ -48,6 +49,49 @@ func NewGitServer(out Encoder, in Decoder, backend Backend) *GitServer {
 		in:      in,
 		backend: backend,
 	}
+}
+
+// ServeRequest handles a single git request
+func (h *GitServer) ServeRequest() error {
+	op, err := h.ReceiveHandshake()
+	if err != nil {
+		return err
+	}
+
+	if op == GitPull {
+		refs, err := h.backend.GetRefs()
+		if err != nil {
+			return err
+		}
+
+		if err := h.SendRefs(refs, GitPull); err != nil {
+			return err
+		}
+
+		wants, err := h.ReceivePullWants()
+		if err != nil {
+			return err
+		}
+
+		deltas, err := h.NegotiatePullPackfile(wants)
+		if err != nil {
+			return err
+		}
+		if len(deltas) != 1 {
+			panic("not implemented")
+		}
+
+		deltaReader, err := h.backend.ReadPackfile(deltas[0])
+		if err != nil {
+			return err
+		}
+
+		if err := h.SendPackfile(deltaReader); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ReceiveHandshake reads repo and host info from the client
@@ -125,13 +169,10 @@ func (h *GitServer) ReceivePullWants() ([]string, error) {
 			return nil, ErrorInvalidWantLine
 		}
 
-		line = line[5:]
-
-		if nullPos := bytes.IndexByte(line, 0); nullPos != -1 {
-			line = line[0:nullPos]
+		if len(line) < 45 {
+			return nil, ErrorInvalidWantLine
 		}
-
-		refs = append(refs, string(line))
+		refs = append(refs, string(line[5:45]))
 	}
 	return refs, nil
 }
@@ -154,21 +195,23 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 		}
 
 		if line == nil {
-			h.out.Encode([]byte("NACK"))
+			h.out.Encode([]byte("NAK"))
 			continue
 		}
 
-		if bytes.Equal(line, []byte("done")) {
-			h.out.Encode([]byte("NACK"))
+		if bytes.HasPrefix(line, []byte("done")) {
+			h.out.Encode([]byte("NAK"))
 			break
 		}
 
 		if !bytes.HasPrefix(line, []byte("have ")) {
 			return nil, ErrorInvalidHaveLine
 		}
-		line = line[5:]
 
-		have := string(line)
+		if len(line) < 45 {
+			return nil, ErrorInvalidHaveLine
+		}
+		have := string(line[5:45])
 
 		// Check each unfulfilled want
 		for want := range unfulfilledWants {
@@ -199,7 +242,6 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 		}
 		deltas = append(deltas, delta)
 	}
-
 	return deltas, nil
 }
 
@@ -219,7 +261,7 @@ func (h *GitServer) SendPackfile(r io.Reader) error {
 			return err
 		}
 	}
-	return nil
+	return h.out.Encode(nil)
 }
 
 // ReceivePushRefs receives the references to be updates in a push from the client
@@ -241,6 +283,7 @@ func (h *GitServer) ReceivePushRefs() ([]RefUpdate, error) {
 		}
 
 		name := string(parts[2])
+		name = strings.TrimSpace(name)
 		oldID := string(parts[0])
 		if isNullID(oldID) {
 			oldID = ""

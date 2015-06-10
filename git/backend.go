@@ -1,5 +1,7 @@
 package git
 
+import "io"
+
 // A Delta is the difference between two commits
 type Delta interface {
 }
@@ -10,4 +12,8 @@ type Backend interface {
 	FindDelta(from, to string) (Delta, error)
 
 	DeltaFromZero(to string) (Delta, error)
+
+	GetRefs() ([]Ref, error)
+
+	ReadPackfile(d Delta) (io.Reader, error)
 }

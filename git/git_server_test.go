@@ -3,6 +3,7 @@ package git_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"math/rand"
 
 	"github.com/lucas-clemente/git-cr/git"
@@ -57,6 +58,14 @@ func (b *sampleBackend) FindDelta(from, to string) (git.Delta, error) {
 
 func (b *sampleBackend) DeltaFromZero(to string) (git.Delta, error) {
 	return &sampleDelta{from: "", to: to}, nil
+}
+
+func (*sampleBackend) GetRefs() ([]git.Ref, error) {
+	panic("not implemented")
+}
+
+func (*sampleBackend) ReadPackfile(d git.Delta) (io.Reader, error) {
+	panic("not implemented")
 }
 
 var _ = Describe("git server", func() {
@@ -142,8 +151,8 @@ var _ = Describe("git server", func() {
 	Context("reading pull wants", func() {
 		It("receives wants", func() {
 			decoder.setData(
-				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
-				[]byte("want f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
+				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
+				[]byte("want f1d2d2f924e986ac86fdf7b36c94bcdf32beec15\n"),
 				nil,
 			)
 			wants, err := handler.ReceivePullWants()
@@ -155,7 +164,7 @@ var _ = Describe("git server", func() {
 
 		It("handles client capabilities", func() {
 			decoder.setData(
-				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea\000foobar"),
+				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea foobar\n"),
 				nil,
 			)
 			wants, err := handler.ReceivePullWants()
@@ -168,119 +177,119 @@ var _ = Describe("git server", func() {
 	Context("negotiating packfiles", func() {
 		It("handles full deltas", func() {
 			decoder.setData(
-				[]byte("have foobar"),
-				[]byte("done"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
+				[]byte("done\n"),
 			)
-			wants := []string{"another"}
+			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(1))
-			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(1))
 			Ω(deltas[0].(*sampleDelta).from).Should(Equal(""))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("another"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 
 		It("handles intermediate flushes", func() {
 			decoder.setData(
-				[]byte("have foobar"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				nil,
-				[]byte("have foobar"),
-				[]byte("done"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
+				[]byte("done\n"),
 			)
-			wants := []string{"another"}
+			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
-			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(1))
 			Ω(deltas[0].(*sampleDelta).from).Should(Equal(""))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("another"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 
 		It("handles single have with delta", func() {
 			backend.deltas = []*sampleDelta{
-				&sampleDelta{from: "foobar", to: "foobaz"},
+				&sampleDelta{from: "30f79bec32243c31dd91a05c0ad7b80f1e301aea", to: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"},
 			}
 			decoder.setData(
-				[]byte("have foobar"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
 				[]byte("done"),
 			)
-			wants := []string{"foobaz"}
+			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
-			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(1))
-			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 
 		It("handles single have with delta and followup haves", func() {
 			backend.deltas = []*sampleDelta{
-				&sampleDelta{from: "foobar", to: "foobaz"},
+				&sampleDelta{from: "30f79bec32243c31dd91a05c0ad7b80f1e301aea", to: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"},
 			}
 			decoder.setData(
-				[]byte("have foobar"),
-				[]byte("have somethingelse"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
+				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
 				[]byte("done"),
 			)
-			wants := []string{"foobaz"}
+			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
-			Ω(encoder.data[1]).Should(Equal([]byte("ACK somethingelse ready")))
-			Ω(encoder.data[2]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK e242ed3bffccdf271b7fbaf34ed72d089537b42f ready")))
+			Ω(encoder.data[2]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(1))
-			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 
 		It("handles single have with delta and irrelevant haves", func() {
 			backend.deltas = []*sampleDelta{
-				&sampleDelta{from: "foobar", to: "foobaz"},
+				&sampleDelta{from: "30f79bec32243c31dd91a05c0ad7b80f1e301aea", to: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"},
 			}
 			decoder.setData(
-				[]byte("have somethingelse"),
-				[]byte("have foobar"),
+				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
+				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
 				[]byte("done"),
 			)
-			wants := []string{"foobaz"}
+			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
-			Ω(encoder.data[1]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(1))
-			Ω(deltas[0].(*sampleDelta).from).Should(Equal("foobar"))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("foobaz"))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"))
 		})
 
 		It("handles multiple wants", func() {
 			backend.deltas = []*sampleDelta{
-				&sampleDelta{from: "a1", to: "a2"},
-				&sampleDelta{from: "b1", to: "b2"},
+				&sampleDelta{from: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1", to: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"},
+				&sampleDelta{from: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1", to: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"},
 			}
 			decoder.setData(
-				[]byte("have a1"),
-				[]byte("have b1"),
+				[]byte("have aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"),
+				[]byte("have bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1"),
 				[]byte("done"),
 			)
-			wants := []string{"a2", "b2"}
+			wants := []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"}
 			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK a1 common")))
-			Ω(encoder.data[1]).Should(Equal([]byte("ACK b1 ready")))
-			Ω(encoder.data[2]).Should(Equal([]byte("NACK")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1 common")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1 ready")))
+			Ω(encoder.data[2]).Should(Equal([]byte("NAK")))
 			Ω(deltas).Should(HaveLen(2))
-			Ω(deltas[0].(*sampleDelta).from).Should(Equal("a1"))
-			Ω(deltas[0].(*sampleDelta).to).Should(Equal("a2"))
-			Ω(deltas[1].(*sampleDelta).from).Should(Equal("b1"))
-			Ω(deltas[1].(*sampleDelta).to).Should(Equal("b2"))
+			Ω(deltas[0].(*sampleDelta).from).Should(Equal("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"))
+			Ω(deltas[0].(*sampleDelta).to).Should(Equal("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"))
+			Ω(deltas[1].(*sampleDelta).from).Should(Equal("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1"))
+			Ω(deltas[1].(*sampleDelta).to).Should(Equal("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"))
 		})
 	})
 
@@ -289,8 +298,9 @@ var _ = Describe("git server", func() {
 			pack := bytes.NewBufferString("foobar")
 			err := handler.SendPackfile(pack)
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(encoder.data).Should(HaveLen(1))
+			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("\001foobar")))
+			Ω(encoder.data[1]).Should(BeNil())
 		})
 
 		It("sends long packfiles", func() {
@@ -301,18 +311,19 @@ var _ = Describe("git server", func() {
 			}
 			err := handler.SendPackfile(bytes.NewBuffer(data))
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(encoder.data).Should(HaveLen(2))
+			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0][0]).Should(Equal(byte(1)))
 			Ω(encoder.data[0][1:]).Should(HaveLen(65519))
 			Ω(bytes.Equal(encoder.data[0][1:], data[0:65519])).Should(BeTrue())
 			Ω(encoder.data[1][0]).Should(Equal(byte(1)))
 			Ω(encoder.data[1][1]).Should(Equal(data[65519]))
+			Ω(encoder.data[2]).Should(BeNil())
 		})
 	})
 
 	Context("receiving push refs", func() {
 		It("receives creates", func() {
-			decoder.setData([]byte("0000000000000000000000000000000000000000 f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master"), nil)
+			decoder.setData([]byte("0000000000000000000000000000000000000000 f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master\n"), nil)
 			refs, err := handler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
@@ -323,7 +334,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("receives updates", func() {
-			decoder.setData([]byte("30f79bec32243c31dd91a05c0ad7b80f1e301aea f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master"), nil)
+			decoder.setData([]byte("30f79bec32243c31dd91a05c0ad7b80f1e301aea f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master\n"), nil)
 			refs, err := handler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
@@ -334,7 +345,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("receives deletes", func() {
-			decoder.setData([]byte("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 0000000000000000000000000000000000000000 refs/heads/master"), nil)
+			decoder.setData([]byte("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 0000000000000000000000000000000000000000 refs/heads/master\n"), nil)
 			refs, err := handler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
