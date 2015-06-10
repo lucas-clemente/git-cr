@@ -7,6 +7,7 @@ import (
 )
 
 const pullCapabilities = "multi_ack_detailed side-band-64k thin-pack"
+const pushCapabilities = "delete-refs ofs-delta"
 
 var (
 	// ErrorInvalidHandshake occurs if the client presents an invalid handshake
@@ -87,11 +88,15 @@ func (h *GitServer) ReceiveHandshake() (GitOperation, error) {
 }
 
 // SendRefs sends the given references to the client
-func (h *GitServer) SendRefs(refs []Ref) error {
+func (h *GitServer) SendRefs(refs []Ref, op GitOperation) error {
 	for i, r := range refs {
 		line := r.Sha1 + " " + r.Name
 		if i == 0 {
-			line += "\000" + pullCapabilities
+			if op == GitPull {
+				line += "\000" + pullCapabilities
+			} else {
+				line += "\000" + pushCapabilities
+			}
 		}
 		if err := h.out.Encode([]byte(line)); err != nil {
 			return err
