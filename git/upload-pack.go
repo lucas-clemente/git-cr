@@ -3,6 +3,7 @@ package git
 import (
 	"bytes"
 	"errors"
+	"io"
 )
 
 const capabilities = "multi_ack_detailed side-band-64k thin-pack"
@@ -177,4 +178,23 @@ func (h *UploadPackHandler) HandleClientHaves(wants []string) ([]Delta, error) {
 	}
 
 	return deltas, nil
+}
+
+// SendPackfile sends a packfile using the side-band-64k encoding
+func (h *UploadPackHandler) SendPackfile(r io.Reader) error {
+	for {
+		line := make([]byte, 65520)
+		line[0] = 1
+		n, err := r.Read(line[1:])
+		if n != 0 {
+			h.out.Encode(line[0 : n+1])
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+	}
+	return nil
 }

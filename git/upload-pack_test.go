@@ -1,7 +1,9 @@
 package git_test
 
 import (
+	"bytes"
 	"errors"
+	"math/rand"
 
 	"github.com/lucas-clemente/git-cr/git"
 
@@ -258,6 +260,32 @@ var _ = Describe("upload-pack", func() {
 			Ω(deltas[0].(*sampleDelta).to).Should(Equal("a2"))
 			Ω(deltas[1].(*sampleDelta).from).Should(Equal("b1"))
 			Ω(deltas[1].(*sampleDelta).to).Should(Equal("b2"))
+		})
+	})
+
+	Context("sending packfiles", func() {
+		It("sends short packfiles", func() {
+			pack := bytes.NewBufferString("foobar")
+			err := handler.SendPackfile(pack)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(1))
+			Ω(encoder.data[0]).Should(Equal([]byte("\001foobar")))
+		})
+
+		It("sends long packfiles", func() {
+			data := make([]byte, 65519+1)
+			src := rand.NewSource(42)
+			for i := range data {
+				data[i] = byte(src.Int63())
+			}
+			err := handler.SendPackfile(bytes.NewBuffer(data))
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(encoder.data).Should(HaveLen(2))
+			Ω(encoder.data[0][0]).Should(Equal(byte(1)))
+			Ω(encoder.data[0][1:]).Should(HaveLen(65519))
+			Ω(bytes.Equal(encoder.data[0][1:], data[0:65519])).Should(BeTrue())
+			Ω(encoder.data[1][0]).Should(Equal(byte(1)))
+			Ω(encoder.data[1][1]).Should(Equal(data[65519]))
 		})
 	})
 })
