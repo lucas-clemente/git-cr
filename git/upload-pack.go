@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-const capabilities = "multi_ack_detailed"
+const capabilities = "multi_ack_detailed side-band-64k thin-pack"
 
 var (
 	// ErrorInvalidHandshake occurs if the client presents an invalid handshake

@@ -111,7 +111,7 @@ var _ = Describe("upload-pack", func() {
 			refs := []git.Ref{git.Ref{Name: "foo", Sha1: "bar"}}
 			Ω(handler.SendRefs(refs)).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("bar foo\000multi_ack_detailed")))
+			Ω(encoder.data[0]).Should(Equal([]byte("bar foo\000multi_ack_detailed side-band-64k thin-pack")))
 			Ω(encoder.data[1]).Should(BeNil())
 		})
 	})
