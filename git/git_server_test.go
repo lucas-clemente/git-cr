@@ -59,7 +59,7 @@ func (b *sampleBackend) DeltaFromZero(to string) (git.Delta, error) {
 	return &sampleDelta{from: "", to: to}, nil
 }
 
-var _ = Describe("upload-pack", func() {
+var _ = Describe("git server", func() {
 	var (
 		decoder *sampleDecoder
 		encoder *sampleEncoder
@@ -139,14 +139,14 @@ var _ = Describe("upload-pack", func() {
 		})
 	})
 
-	Context("reading client wants", func() {
+	Context("reading pull wants", func() {
 		It("receives wants", func() {
 			decoder.setData(
 				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
 				[]byte("want f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
 				nil,
 			)
-			wants, err := handler.ReceiveClientWants()
+			wants, err := handler.ReceivePullWants()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(wants).Should(HaveLen(2))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
@@ -158,7 +158,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea\000foobar"),
 				nil,
 			)
-			wants, err := handler.ReceiveClientWants()
+			wants, err := handler.ReceivePullWants()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(wants).Should(HaveLen(1))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
@@ -172,7 +172,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"another"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(1))
 			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
@@ -189,7 +189,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"another"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
@@ -208,7 +208,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -228,7 +228,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -249,7 +249,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -270,7 +270,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"a2", "b2"}
-			deltas, err := handler.ReceiveClientHaves(wants)
+			deltas, err := handler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK a1 common")))

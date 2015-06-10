@@ -106,8 +106,8 @@ func (h *GitServer) SendRefs(refs []Ref, op GitOperation) error {
 	return h.out.Encode(nil)
 }
 
-// ReceiveClientWants receives the requested refs from the client
-func (h *GitServer) ReceiveClientWants() ([]string, error) {
+// ReceivePullWants receives the requested refs from the client
+func (h *GitServer) ReceivePullWants() ([]string, error) {
 	refs := []string{}
 	var line []byte
 	for {
@@ -134,9 +134,9 @@ func (h *GitServer) ReceiveClientWants() ([]string, error) {
 	return refs, nil
 }
 
-// ReceiveClientHaves receives the client's haves and uses the backend
+// NegotiatePullPackfile receives the client's haves and uses the backend
 // to calculate the deltas that should be sent to the client
-func (h *GitServer) ReceiveClientHaves(wants []string) ([]Delta, error) {
+func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 	// multi_ack_detailed implementation
 	var line []byte
 	deltas := []Delta{}
