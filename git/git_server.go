@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-const capabilities = "multi_ack_detailed side-band-64k thin-pack"
+const pullCapabilities = "multi_ack_detailed side-band-64k thin-pack"
 
 var (
 	// ErrorInvalidHandshake occurs if the client presents an invalid handshake
@@ -17,8 +17,18 @@ var (
 	ErrorInvalidHaveLine = errors.New("invalid `have` line sent by client")
 )
 
-// UploadPackHandler handles git fetch / pull
-type UploadPackHandler struct {
+// A GitOperation can either be a pull or push
+type GitOperation int
+
+const (
+	// GitPull is a pull
+	GitPull GitOperation = iota
+	// GitPush is a push
+	GitPush
+)
+
+// GitServer handles the git protocol
+type GitServer struct {
 	Repo string
 	Host string
 
@@ -28,54 +38,60 @@ type UploadPackHandler struct {
 	backend Backend
 }
 
-// NewUploadPackHandler makes a handler for a fetch/pull with the handshake line
-func NewUploadPackHandler(out Encoder, in Decoder, backend Backend) *UploadPackHandler {
-	return &UploadPackHandler{
+// NewGitServer makes a handler for the git protocol
+func NewGitServer(out Encoder, in Decoder, backend Backend) *GitServer {
+	return &GitServer{
 		out:     out,
 		in:      in,
 		backend: backend,
 	}
 }
 
-// ParseHandshake reads repo and host info from the client
-func (h *UploadPackHandler) ParseHandshake() error {
-	// format: "git-upload-pack repo-name\0host=host-name"
+// ReceiveHandshake reads repo and host info from the client
+func (h *GitServer) ReceiveHandshake() (GitOperation, error) {
+	// format: "git-[upload|receive]-pack repo-name\0host=host-name"
 	var handshake []byte
+	var op GitOperation
 
 	if err := h.in.Decode(&handshake); err != nil {
-		return err
+		return 0, err
 	}
 
-	if !bytes.HasPrefix(handshake, []byte("git-upload-pack ")) {
-		return ErrorInvalidHandshake
+	if bytes.HasPrefix(handshake, []byte("git-upload-pack ")) {
+		op = GitPull
+		handshake = handshake[len("git-upload-pack "):]
+	} else if bytes.HasPrefix(handshake, []byte("git-receive-pack ")) {
+		op = GitPush
+		handshake = handshake[len("git-receive-pack "):]
+	} else {
+		return 0, ErrorInvalidHandshake
 	}
-	handshake = handshake[len("git-upload-pack "):]
 
 	nullPos := bytes.IndexByte(handshake, 0)
 	if nullPos == -1 || nullPos == 0 {
-		return ErrorInvalidHandshake
+		return 0, ErrorInvalidHandshake
 	}
 	h.Repo = string(handshake[:nullPos])
 	handshake = handshake[nullPos+1:]
 
 	if !bytes.HasPrefix(handshake, []byte("host=")) {
-		return ErrorInvalidHandshake
+		return 0, ErrorInvalidHandshake
 	}
 	handshake = handshake[len("host="):]
 	if len(handshake) == 0 {
-		return ErrorInvalidHandshake
+		return 0, ErrorInvalidHandshake
 	}
 	h.Host = string(handshake)
 
-	return nil
+	return op, nil
 }
 
 // SendRefs sends the given references to the client
-func (h *UploadPackHandler) SendRefs(refs []Ref) error {
+func (h *GitServer) SendRefs(refs []Ref) error {
 	for i, r := range refs {
 		line := r.Sha1 + " " + r.Name
 		if i == 0 {
-			line += "\000" + capabilities
+			line += "\000" + pullCapabilities
 		}
 		if err := h.out.Encode([]byte(line)); err != nil {
 			return err
@@ -86,7 +102,7 @@ func (h *UploadPackHandler) SendRefs(refs []Ref) error {
 }
 
 // ReceiveClientWants receives the requested refs from the client
-func (h *UploadPackHandler) ReceiveClientWants() ([]string, error) {
+func (h *GitServer) ReceiveClientWants() ([]string, error) {
 	refs := []string{}
 	var line []byte
 	for {
@@ -115,7 +131,7 @@ func (h *UploadPackHandler) ReceiveClientWants() ([]string, error) {
 
 // HandleClientHaves receives the client's haves and uses the backend
 // to calculate the deltas that should be sent to the client
-func (h *UploadPackHandler) HandleClientHaves(wants []string) ([]Delta, error) {
+func (h *GitServer) HandleClientHaves(wants []string) ([]Delta, error) {
 	// multi_ack_detailed implementation
 	var line []byte
 	deltas := []Delta{}
@@ -181,7 +197,7 @@ func (h *UploadPackHandler) HandleClientHaves(wants []string) ([]Delta, error) {
 }
 
 // SendPackfile sends a packfile using the side-band-64k encoding
-func (h *UploadPackHandler) SendPackfile(r io.Reader) error {
+func (h *GitServer) SendPackfile(r io.Reader) error {
 	for {
 		line := make([]byte, 65520)
 		line[0] = 1
