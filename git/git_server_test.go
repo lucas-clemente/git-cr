@@ -172,7 +172,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"another"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(1))
 			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
@@ -189,7 +189,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"another"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("NACK")))
@@ -208,7 +208,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -228,7 +228,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -249,7 +249,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"foobaz"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK foobar ready")))
@@ -270,7 +270,7 @@ var _ = Describe("upload-pack", func() {
 				[]byte("done"),
 			)
 			wants := []string{"a2", "b2"}
-			deltas, err := handler.HandleClientHaves(wants)
+			deltas, err := handler.ReceiveClientHaves(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK a1 common")))

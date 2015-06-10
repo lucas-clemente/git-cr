@@ -134,9 +134,9 @@ func (h *GitServer) ReceiveClientWants() ([]string, error) {
 	return refs, nil
 }
 
-// HandleClientHaves receives the client's haves and uses the backend
+// ReceiveClientHaves receives the client's haves and uses the backend
 // to calculate the deltas that should be sent to the client
-func (h *GitServer) HandleClientHaves(wants []string) ([]Delta, error) {
+func (h *GitServer) ReceiveClientHaves(wants []string) ([]Delta, error) {
 	// multi_ack_detailed implementation
 	var line []byte
 	deltas := []Delta{}
