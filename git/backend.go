@@ -15,5 +15,5 @@ type Backend interface {
 
 	GetRefs() ([]Ref, error)
 
-	ReadPackfile(d Delta) (io.Reader, error)
+	ReadPackfile(d Delta) (io.ReadCloser, error)
 }

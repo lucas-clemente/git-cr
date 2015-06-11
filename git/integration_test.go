@@ -17,7 +17,7 @@ import (
 
 const port = "6758"
 
-type fixtureDelta io.Reader
+type fixtureDelta io.ReadCloser
 
 type fixtureBackend struct {
 }
@@ -30,7 +30,7 @@ func (*fixtureBackend) DeltaFromZero(id string) (git.Delta, error) {
 			"UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=",
 		)
 		Ω(err).ShouldNot(HaveOccurred())
-		return bytes.NewBuffer(pack), nil
+		return ioutil.NopCloser(bytes.NewBuffer(pack)), nil
 	}
 	panic("delta from 0 not found")
 }
@@ -46,8 +46,8 @@ func (*fixtureBackend) GetRefs() ([]git.Ref, error) {
 	}, nil
 }
 
-func (*fixtureBackend) ReadPackfile(d git.Delta) (io.Reader, error) {
-	return d.(io.Reader), nil
+func (*fixtureBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
+	return d.(io.ReadCloser), nil
 }
 
 var _ = Describe("integration with git", func() {

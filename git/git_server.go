@@ -82,6 +82,7 @@ func (h *GitServer) ServeRequest() error {
 		}
 
 		deltaReader, err := h.backend.ReadPackfile(deltas[0])
+		defer deltaReader.Close()
 		if err != nil {
 			return err
 		}

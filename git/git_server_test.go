@@ -64,7 +64,7 @@ func (*sampleBackend) GetRefs() ([]git.Ref, error) {
 	panic("not implemented")
 }
 
-func (*sampleBackend) ReadPackfile(d git.Delta) (io.Reader, error) {
+func (*sampleBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 	panic("not implemented")
 }
 
