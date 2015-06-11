@@ -265,27 +265,6 @@ func (h *GitServer) SendPackfile(r io.Reader) error {
 	return h.out.Encode(nil)
 }
 
-// ReceivePackfile receives a packfile during push from the client
-func (h *GitServer) ReceivePackfile() (io.Reader, error) {
-	buf := new(bytes.Buffer)
-	var line []byte
-	for {
-		if err := h.in.Decode(&line); err != nil {
-			return nil, err
-		}
-
-		if line == nil {
-			break
-		}
-
-		_, err := buf.Write(line)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return buf, nil
-}
-
 // ReceivePushRefs receives the references to be updates in a push from the client
 func (h *GitServer) ReceivePushRefs() ([]RefUpdate, error) {
 	var line []byte

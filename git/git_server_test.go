@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"math/rand"
 
 	"github.com/lucas-clemente/git-cr/git"
@@ -354,26 +353,6 @@ var _ = Describe("git server", func() {
 				OldID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				NewID: "",
 			}}))
-		})
-	})
-
-	Context("receiving packfiles", func() {
-		It("receives short packfiles", func() {
-			decoder.setData([]byte("foobar"), nil)
-			r, err := handler.ReceivePackfile()
-			Ω(err).ShouldNot(HaveOccurred())
-			data, err := ioutil.ReadAll(r)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(Equal([]byte("foobar")))
-		})
-
-		It("receives long packfiles", func() {
-			decoder.setData([]byte("foo"), []byte("bar"), nil)
-			r, err := handler.ReceivePackfile()
-			Ω(err).ShouldNot(HaveOccurred())
-			data, err := ioutil.ReadAll(r)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(Equal([]byte("foobar")))
 		})
 	})
 })
