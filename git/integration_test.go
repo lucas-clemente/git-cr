@@ -132,11 +132,14 @@ var _ = Describe("integration with git", func() {
 	})
 
 	Context("pushing", func() {
-		It("pushes updates", func() {
+		BeforeEach(func() {
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
+		})
+
+		It("pushes updates", func() {
 			// Modify file
-			err = ioutil.WriteFile(tempDir+"/foo", []byte("baz"), 0644)
+			err := ioutil.WriteFile(tempDir+"/foo", []byte("baz"), 0644)
 			Ω(err).ShouldNot(HaveOccurred())
 			// Add
 			cmd := exec.Command("git", "add", "foo")
@@ -153,11 +156,7 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Commit
-			cmd = exec.Command(
-				"git",
-				"commit",
-				"--message=msg",
-			)
+			cmd = exec.Command("git", "commit", "--message=msg")
 			cmd.Dir = tempDir
 			cmd.Env = []string{
 				"GIT_COMMITTER_DATE=Thu Jun 11 11:01:22 2015 +0200",
@@ -170,13 +169,38 @@ var _ = Describe("integration with git", func() {
 			cmd.Dir = tempDir
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
-
 			// Verify
 			Ω(backend.pushedRevs).Should(Equal([]string{"1a6d946069d483225913cf3b8ba8eae4c894c322"}))
 			Ω(backend.updatedRefs).Should(HaveLen(1))
 			Ω(backend.updatedRefs[0].Name).Should(Equal("refs/heads/master"))
 			Ω(backend.updatedRefs[0].OldID).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
 			Ω(backend.updatedRefs[0].NewID).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
+		})
+
+		It("pushes deletes", func() {
+			// Push
+			cmd := exec.Command("git", "push", "origin", ":master")
+			cmd.Dir = tempDir
+			err := cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Verify
+			Ω(backend.updatedRefs).Should(HaveLen(1))
+			Ω(backend.updatedRefs[0].Name).Should(Equal("refs/heads/master"))
+			Ω(backend.updatedRefs[0].OldID).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+			Ω(backend.updatedRefs[0].NewID).Should(Equal(""))
+		})
+
+		It("pushes new branches", func() {
+			// Push
+			cmd := exec.Command("git", "push", "origin", "master:foobar")
+			cmd.Dir = tempDir
+			err := cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Verify
+			Ω(backend.updatedRefs).Should(HaveLen(1))
+			Ω(backend.updatedRefs[0].Name).Should(Equal("refs/heads/foobar"))
+			Ω(backend.updatedRefs[0].OldID).Should(Equal(""))
+			Ω(backend.updatedRefs[0].NewID).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
 		})
 	})
 })
