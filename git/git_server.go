@@ -284,6 +284,9 @@ func (h *GitServer) ReceivePushRefs() ([]RefUpdate, error) {
 		}
 
 		name := string(parts[2])
+		if name[len(name)-1] == 0 {
+			name = name[0 : len(name)-1]
+		}
 		name = strings.TrimSpace(name)
 		oldID := string(parts[0])
 		if isNullID(oldID) {
