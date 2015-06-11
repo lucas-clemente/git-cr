@@ -2,7 +2,6 @@ package git_test
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"math/rand"
 
@@ -18,7 +17,7 @@ type sampleDecoder struct {
 
 func (d *sampleDecoder) Decode(b *[]byte) error {
 	if len(d.data) == 0 {
-		return errors.New("EOF")
+		return io.EOF
 	}
 	*b = d.data[0]
 	d.data = d.data[1:]
