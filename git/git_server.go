@@ -90,6 +90,33 @@ func (h *GitServer) ServeRequest() error {
 		if err := h.SendPackfile(deltaReader); err != nil {
 			return err
 		}
+	} else if op == GitPush {
+		refs, err := h.backend.GetRefs()
+		if err != nil {
+			return err
+		}
+
+		if err := h.SendRefs(refs, GitPush); err != nil {
+			return err
+		}
+
+		refUpdates, err := h.ReceivePushRefs()
+		if err != nil {
+			return err
+		}
+		if len(refUpdates) != 1 {
+			panic("not implemented")
+		}
+
+		if err := h.backend.UpdateRef(refUpdates[0]); err != nil {
+			return err
+		}
+
+		if err := h.backend.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
+			return err
+		}
+	} else {
+		panic("unexpected git op")
 	}
 
 	return nil

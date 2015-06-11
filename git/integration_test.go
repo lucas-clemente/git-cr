@@ -17,9 +17,15 @@ import (
 
 const port = "6758"
 
-type fixtureDelta io.ReadCloser
+type pktlineDecoderWrapper struct {
+	*pktline.Decoder
+	io.Reader
+}
 
 type fixtureBackend struct {
+	updatedRefs     []git.RefUpdate
+	pushedPackfiles [][]byte
+	pushedRevs      []string
 }
 
 var _ git.Backend = &fixtureBackend{}
@@ -50,6 +56,21 @@ func (*fixtureBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 	return d.(io.ReadCloser), nil
 }
 
+func (b *fixtureBackend) UpdateRef(update git.RefUpdate) error {
+	b.updatedRefs = append(b.updatedRefs, update)
+	return nil
+}
+
+func (b *fixtureBackend) WritePackfile(from, to string, r io.Reader) error {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	b.pushedPackfiles = append(b.pushedPackfiles, data)
+	b.pushedRevs = append(b.pushedRevs, to)
+	return nil
+}
+
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
@@ -64,7 +85,11 @@ var _ = Describe("integration with git", func() {
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		backend = &fixtureBackend{}
+		backend = &fixtureBackend{
+			updatedRefs:     []git.RefUpdate{},
+			pushedPackfiles: [][]byte{},
+			pushedRevs:      []string{},
+		}
 
 		listener, err = net.Listen("tcp", "localhost:"+port)
 		Ω(err).ShouldNot(HaveOccurred())
@@ -72,19 +97,21 @@ var _ = Describe("integration with git", func() {
 		go func() {
 			defer GinkgoRecover()
 
-			conn, err := listener.Accept()
-			if err != nil {
-				return
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+
+				encoder := pktline.NewEncoder(conn)
+				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
+
+				server = git.NewGitServer(encoder, decoder, backend)
+				err = server.ServeRequest()
+				Ω(err).ShouldNot(HaveOccurred())
+				conn.Close()
 			}
-			defer conn.Close()
-
-			encoder := pktline.NewEncoder(conn)
-			decoder := pktline.NewDecoder(conn)
-
-			server = git.NewGitServer(encoder, decoder, backend)
-			err = server.ServeRequest()
-			Ω(err).ShouldNot(HaveOccurred())
-			conn.Close()
 		}()
 
 	})
@@ -101,6 +128,55 @@ var _ = Describe("integration with git", func() {
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("bar\n")))
+		})
+	})
+
+	Context("pushing", func() {
+		It("pushes updates", func() {
+			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Modify file
+			err = ioutil.WriteFile(tempDir+"/foo", []byte("baz"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			// Add
+			cmd := exec.Command("git", "add", "foo")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Settings
+			cmd = exec.Command("git", "config", "user.name", "test")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			cmd = exec.Command("git", "config", "user.email", "test@example.com")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Commit
+			cmd = exec.Command(
+				"git",
+				"commit",
+				"--message=msg",
+			)
+			cmd.Dir = tempDir
+			cmd.Env = []string{
+				"GIT_COMMITTER_DATE=Thu Jun 11 11:01:22 2015 +0200",
+				"GIT_AUTHOR_DATE=Thu Jun 11 11:01:22 2015 +0200",
+			}
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			// Push
+			cmd = exec.Command("git", "push")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			// Verify
+			Ω(backend.pushedRevs).Should(Equal([]string{"1a6d946069d483225913cf3b8ba8eae4c894c322"}))
+			Ω(backend.updatedRefs).Should(HaveLen(1))
+			Ω(backend.updatedRefs[0].Name).Should(Equal("refs/heads/master"))
+			Ω(backend.updatedRefs[0].OldID).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+			Ω(backend.updatedRefs[0].NewID).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
 		})
 	})
 })

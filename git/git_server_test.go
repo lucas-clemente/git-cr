@@ -24,6 +24,10 @@ func (d *sampleDecoder) Decode(b *[]byte) error {
 	return nil
 }
 
+func (d *sampleDecoder) Read(p []byte) (int, error) {
+	panic("not implemented")
+}
+
 func (d *sampleDecoder) setData(data ...[]byte) {
 	d.data = data
 }
@@ -64,6 +68,14 @@ func (*sampleBackend) GetRefs() ([]git.Ref, error) {
 }
 
 func (*sampleBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
+	panic("not implemented")
+}
+
+func (*sampleBackend) UpdateRef(update git.RefUpdate) error {
+	panic("not implemented")
+}
+
+func (*sampleBackend) WritePackfile(from, to string, r io.Reader) error {
 	panic("not implemented")
 }
 
