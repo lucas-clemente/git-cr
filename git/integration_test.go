@@ -8,14 +8,13 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/bargez/pktline"
 	"github.com/lucas-clemente/git-cr/git"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-const port = "6758"
 
 type pktlineDecoderWrapper struct {
 	*pktline.Decoder
@@ -76,6 +75,7 @@ var _ = Describe("integration with git", func() {
 		backend  *fixtureBackend
 		server   *git.GitServer
 		listener net.Listener
+		port     string
 	)
 
 	BeforeEach(func() {
@@ -97,8 +97,9 @@ var _ = Describe("integration with git", func() {
 			pushedRevs:      []string{},
 		}
 
-		listener, err = net.Listen("tcp", "localhost:"+port)
+		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())
+		port = strings.Split(listener.Addr().String(), ":")[1]
 
 		go func() {
 			defer GinkgoRecover()
