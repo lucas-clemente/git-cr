@@ -73,7 +73,7 @@ var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
 		backend  *fixtureBackend
-		server   *git.GitServer
+		server   *git.GitRequestHandler
 		listener net.Listener
 		port     string
 	)
@@ -114,7 +114,7 @@ var _ = Describe("integration with git", func() {
 				encoder := pktline.NewEncoder(conn)
 				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
 
-				server = git.NewGitServer(encoder, decoder, backend)
+				server = git.NewGitRequestHandler(encoder, decoder, backend)
 				err = server.ServeRequest()
 				Ω(err).ShouldNot(HaveOccurred())
 				conn.Close()

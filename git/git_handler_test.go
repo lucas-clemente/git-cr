@@ -84,14 +84,14 @@ var _ = Describe("git server", func() {
 		decoder *sampleDecoder
 		encoder *sampleEncoder
 		backend *sampleBackend
-		handler *git.GitServer
+		handler *git.GitRequestHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
 		backend = &sampleBackend{deltas: []*sampleDelta{}}
-		handler = git.NewGitServer(encoder, decoder, backend)
+		handler = git.NewGitRequestHandler(encoder, decoder, backend)
 	})
 
 	Context("decoding client handshake", func() {

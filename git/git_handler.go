@@ -31,8 +31,8 @@ const (
 	GitPush
 )
 
-// GitServer handles the git protocol
-type GitServer struct {
+// GitRequestHandler handles the git protocol
+type GitRequestHandler struct {
 	Repo string
 	Host string
 
@@ -42,9 +42,9 @@ type GitServer struct {
 	backend Backend
 }
 
-// NewGitServer makes a handler for the git protocol
-func NewGitServer(out Encoder, in Decoder, backend Backend) *GitServer {
-	return &GitServer{
+// NewGitRequestHandler makes a handler for the git protocol
+func NewGitRequestHandler(out Encoder, in Decoder, backend Backend) *GitRequestHandler {
+	return &GitRequestHandler{
 		out:     out,
 		in:      in,
 		backend: backend,
@@ -52,7 +52,7 @@ func NewGitServer(out Encoder, in Decoder, backend Backend) *GitServer {
 }
 
 // ServeRequest handles a single git request
-func (h *GitServer) ServeRequest() error {
+func (h *GitRequestHandler) ServeRequest() error {
 	op, err := h.ReceiveHandshake()
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (h *GitServer) ServeRequest() error {
 }
 
 // ReceiveHandshake reads repo and host info from the client
-func (h *GitServer) ReceiveHandshake() (GitOperation, error) {
+func (h *GitRequestHandler) ReceiveHandshake() (GitOperation, error) {
 	// format: "git-[upload|receive]-pack repo-name\0host=host-name"
 	var handshake []byte
 	var op GitOperation
@@ -162,7 +162,7 @@ func (h *GitServer) ReceiveHandshake() (GitOperation, error) {
 }
 
 // SendRefs sends the given references to the client
-func (h *GitServer) SendRefs(refs []Ref, op GitOperation) error {
+func (h *GitRequestHandler) SendRefs(refs []Ref, op GitOperation) error {
 	for i, r := range refs {
 		line := r.Sha1 + " " + r.Name
 		if i == 0 {
@@ -181,7 +181,7 @@ func (h *GitServer) SendRefs(refs []Ref, op GitOperation) error {
 }
 
 // ReceivePullWants receives the requested refs from the client
-func (h *GitServer) ReceivePullWants() ([]string, error) {
+func (h *GitRequestHandler) ReceivePullWants() ([]string, error) {
 	refs := []string{}
 	var line []byte
 	for {
@@ -207,7 +207,7 @@ func (h *GitServer) ReceivePullWants() ([]string, error) {
 
 // NegotiatePullPackfile receives the client's haves and uses the backend
 // to calculate the deltas that should be sent to the client
-func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
+func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 	// multi_ack_detailed implementation
 	var line []byte
 	deltas := []Delta{}
@@ -282,7 +282,7 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 }
 
 // SendPackfile sends a packfile using the side-band-64k encoding
-func (h *GitServer) SendPackfile(r io.Reader) error {
+func (h *GitRequestHandler) SendPackfile(r io.Reader) error {
 	for {
 		line := make([]byte, 65520)
 		line[0] = 1
@@ -301,7 +301,7 @@ func (h *GitServer) SendPackfile(r io.Reader) error {
 }
 
 // ReceivePushRefs receives the references to be updates in a push from the client
-func (h *GitServer) ReceivePushRefs() ([]RefUpdate, error) {
+func (h *GitRequestHandler) ReceivePushRefs() ([]RefUpdate, error) {
 	var line []byte
 	refs := []RefUpdate{}
 	for {
