@@ -217,6 +217,8 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 		unfulfilledWants[w] = true
 	}
 
+	lastCommon := ""
+
 	for {
 		if err := h.in.Decode(&line); err != nil {
 			return nil, err
@@ -228,7 +230,11 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 		}
 
 		if bytes.HasPrefix(line, []byte("done")) {
-			h.out.Encode([]byte("NAK"))
+			if len(lastCommon) == 0 {
+				h.out.Encode([]byte("NAK"))
+			} else {
+				h.out.Encode([]byte("ACK " + lastCommon))
+			}
 			break
 		}
 
@@ -253,12 +259,14 @@ func (h *GitServer) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 
 				if len(unfulfilledWants) != 0 {
 					h.out.Encode([]byte("ACK " + have + " common"))
+					lastCommon = have
 				}
 			}
 		}
 
 		if len(unfulfilledWants) == 0 {
 			h.out.Encode([]byte("ACK " + have + " ready"))
+			lastCommon = have
 		}
 	}
 
