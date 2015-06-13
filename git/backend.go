@@ -3,8 +3,7 @@ package git
 import "io"
 
 // A Delta is the difference between two commits
-type Delta interface {
-}
+type Delta interface{}
 
 // A Backend for git data
 type Backend interface {
