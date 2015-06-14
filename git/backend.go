@@ -10,8 +10,6 @@ type Backend interface {
 	// Should return a nil Delta if not found, not an error
 	FindDelta(from, to string) (Delta, error)
 
-	DeltaFromZero(to string) (Delta, error)
-
 	GetRefs() ([]Ref, error)
 
 	ReadPackfile(d Delta) (io.ReadCloser, error)

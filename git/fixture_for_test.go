@@ -40,14 +40,6 @@ func (b *fixtureBackend) addPackfile(from, to, b64 string) {
 	m[to] = pack
 }
 
-func (b *fixtureBackend) DeltaFromZero(to string) (git.Delta, error) {
-	p, ok := b.packfilesFromTo[""][to]
-	if !ok {
-		return nil, nil
-	}
-	return ioutil.NopCloser(bytes.NewBuffer(p)), nil
-}
-
 func (b *fixtureBackend) FindDelta(from, to string) (git.Delta, error) {
 	m, ok := b.packfilesFromTo[from]
 	if !ok {

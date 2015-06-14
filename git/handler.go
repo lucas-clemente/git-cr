@@ -272,7 +272,7 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, erro
 
 	// Left-over wants need to be delta'd from the beginning
 	for w := range unfulfilledWants {
-		delta, err := h.backend.DeltaFromZero(w)
+		delta, err := h.backend.FindDelta("", w)
 		if err != nil {
 			return nil, err
 		}
