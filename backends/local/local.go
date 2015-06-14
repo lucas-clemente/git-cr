@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"os"
 
 	"github.com/lucas-clemente/git-cr/git"
 )
@@ -38,7 +39,22 @@ func (b *localBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 }
 
 func (b *localBackend) UpdateRef(update git.RefUpdate) error {
-	panic("not implemented")
+	refs, err := b.GetRefs()
+	if os.IsNotExist(err) {
+		refs = git.Refs{}
+	} else if err != nil {
+		return err
+	}
+	if update.NewID == "" {
+		delete(refs, update.Name)
+	} else {
+		refs[update.Name] = update.NewID
+	}
+	data, err := json.Marshal(refs)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(b.path+"/refs.json", data, 0644)
 }
 
 func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {

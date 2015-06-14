@@ -54,4 +54,34 @@ var _ = Describe("Local Backend", func() {
 			Ω(os.IsNotExist(err)).Should(BeTrue())
 		})
 	})
+
+	Context("updating refs", func() {
+		It("creates new repos", func() {
+			err := backend.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: "988881adc9fc3655077dc2d4d757d480b5ea0e11"})
+			Ω(err).ShouldNot(HaveOccurred())
+			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(data).Should(MatchJSON(`{"refs/heads/master": "988881adc9fc3655077dc2d4d757d480b5ea0e11"}`))
+		})
+
+		It("handles deletes", func() {
+			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			err = backend.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: ""})
+			Ω(err).ShouldNot(HaveOccurred())
+			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(data).Should(MatchJSON(`{"HEAD": "foobar"}`))
+		})
+
+		It("handles updates", func() {
+			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			err = backend.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: "barfoo"})
+			Ω(err).ShouldNot(HaveOccurred())
+			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(data).Should(MatchJSON(`{"HEAD": "foobar","refs/heads/master":"barfoo"}`))
+		})
+	})
 })
