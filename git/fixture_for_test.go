@@ -74,3 +74,15 @@ func (b *fixtureBackend) WritePackfile(from, to string, r io.Reader) error {
 	b.pushedRevs = append(b.pushedRevs, to)
 	return nil
 }
+
+func (b *fixtureBackend) ListAncestors(target string) ([]string, error) {
+	var results []string
+	for from, toMap := range b.packfilesFromTo {
+		for to := range toMap {
+			if to == target {
+				results = append(results, from)
+			}
+		}
+	}
+	return results, nil
+}

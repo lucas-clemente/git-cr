@@ -4,10 +4,78 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
 )
 
+// Merger is a wrapper around a git.Backend instance that merges multiple deltas into one.
+// E.g. if a backend knows how to get from A -> B and B -> C, Merger builds a delta from A -> C.
+type Merger struct {
+	ListingBackend
+}
+
+var _ Backend = &Merger{}
+
+// FindDelta finds a delta as described in Merger doc
+func (m *Merger) FindDelta(from, to string) (Delta, error) {
+	ancestors, err := m.ListingBackend.ListAncestors(to)
+	if err != nil {
+		return nil, err
+	}
+	for _, ancestor := range ancestors {
+		if ancestor == from {
+			delta, err := m.ListingBackend.FindDelta(from, to)
+			if err != nil {
+				return nil, err
+			}
+			return mergerDeltas([]Delta{delta}), nil
+		}
+		deltas, err := m.FindDelta(from, ancestor)
+		if err == nil {
+			delta, err := m.ListingBackend.FindDelta(ancestor, to)
+			if err != nil {
+				return nil, err
+			}
+			return append(deltas.(mergerDeltas), delta), nil
+		}
+		if err != ErrorDeltaNotFound {
+			return nil, err
+		}
+	}
+
+	return nil, ErrorDeltaNotFound
+}
+
+// ReadPackfile reads a packfile as described in Merger doc
+func (m *Merger) ReadPackfile(delta Delta) (io.ReadCloser, error) {
+	deltas := delta.(mergerDeltas)
+	var packfiles [][]byte
+
+	for _, d := range deltas {
+		reader, err := m.ListingBackend.ReadPackfile(d)
+		if err != nil {
+			return nil, err
+		}
+		packfile, err := ioutil.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
+		packfiles = append(packfiles, packfile)
+	}
+
+	packfile, err := MergePackfiles(packfiles)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(packfile)), nil
+}
+
+type mergerDeltas []Delta
+
+var _ Delta = &mergerDeltas{}
+
 // MergePackfiles merges two packfiles
-func MergePackfiles(packfiles ...[]byte) ([]byte, error) {
+func MergePackfiles(packfiles [][]byte) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	buf.WriteString("PACK")

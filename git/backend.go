@@ -23,3 +23,10 @@ type Backend interface {
 
 	WritePackfile(from, to string, r io.Reader) error
 }
+
+// A ListingBackend is a backend that supports listing all delta
+type ListingBackend interface {
+	Backend
+
+	ListAncestors(target string) ([]string, error)
+}
