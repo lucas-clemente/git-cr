@@ -1,13 +1,18 @@
 package git
 
-import "io"
+import (
+	"errors"
+	"io"
+)
+
+// ErrorDeltaNotFound should be returned by Backend implementations
+var ErrorDeltaNotFound = errors.New("delta not found")
 
 // A Delta is the difference between two commits
 type Delta interface{}
 
 // A Backend for git data
 type Backend interface {
-	// Should return a nil Delta if not found, not an error
 	FindDelta(from, to string) (Delta, error)
 
 	GetRefs() ([]Ref, error)

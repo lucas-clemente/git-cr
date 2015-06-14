@@ -43,11 +43,11 @@ func (b *fixtureBackend) addPackfile(from, to, b64 string) {
 func (b *fixtureBackend) FindDelta(from, to string) (git.Delta, error) {
 	m, ok := b.packfilesFromTo[from]
 	if !ok {
-		return nil, nil
+		return nil, git.ErrorDeltaNotFound
 	}
 	p, ok := m[to]
 	if !ok {
-		return nil, nil
+		return nil, git.ErrorDeltaNotFound
 	}
 	return ioutil.NopCloser(bytes.NewBuffer(p)), nil
 }

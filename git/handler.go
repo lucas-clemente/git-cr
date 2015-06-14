@@ -250,17 +250,18 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, erro
 		// Check each unfulfilled want
 		for want := range unfulfilledWants {
 			delta, err := h.backend.FindDelta(have, want)
+			if err == ErrorDeltaNotFound {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
-			if delta != nil {
-				delete(unfulfilledWants, want)
-				deltas = append(deltas, delta)
+			delete(unfulfilledWants, want)
+			deltas = append(deltas, delta)
 
-				if len(unfulfilledWants) != 0 {
-					h.out.Encode([]byte("ACK " + have + " common"))
-					lastCommon = have
-				}
+			if len(unfulfilledWants) != 0 {
+				h.out.Encode([]byte("ACK " + have + " common"))
+				lastCommon = have
 			}
 		}
 
