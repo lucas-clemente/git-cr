@@ -35,4 +35,23 @@ var _ = Describe("Local Backend", func() {
 	AfterEach(func() {
 		os.RemoveAll(tmpDir)
 	})
+
+	Context("getting refs", func() {
+		It("works", func() {
+			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			refs, err := backend.GetRefs()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(refs).Should(Equal(git.Refs{
+				"HEAD":              "foobar",
+				"refs/heads/master": "foobar",
+			}))
+		})
+
+		It("errors properly on new repos", func() {
+			_, err := backend.GetRefs()
+			Ω(err).ShouldNot(BeNil())
+			Ω(os.IsNotExist(err)).Should(BeTrue())
+		})
+	})
 })

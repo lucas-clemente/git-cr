@@ -1,7 +1,9 @@
 package local
 
 import (
+	"encoding/json"
 	"io"
+	"io/ioutil"
 
 	"github.com/lucas-clemente/git-cr/git"
 )
@@ -20,7 +22,15 @@ func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
 }
 
 func (b *localBackend) GetRefs() (git.Refs, error) {
-	panic("not implemented")
+	data, err := ioutil.ReadFile(b.path + "/refs.json")
+	if err != nil {
+		return nil, err
+	}
+	var refs git.Refs
+	if err := json.Unmarshal(data, &refs); err != nil {
+		return nil, err
+	}
+	return refs, nil
 }
 
 func (b *localBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
