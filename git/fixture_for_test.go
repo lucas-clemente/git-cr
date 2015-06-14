@@ -11,7 +11,7 @@ import (
 
 // A fixtureBackend for tests
 type fixtureBackend struct {
-	currentRefs     []git.Ref
+	currentRefs     git.Refs
 	packfilesFromTo map[string]map[string][]byte
 
 	updatedRefs     []git.RefUpdate
@@ -52,7 +52,7 @@ func (b *fixtureBackend) FindDelta(from, to string) (git.Delta, error) {
 	return ioutil.NopCloser(bytes.NewBuffer(p)), nil
 }
 
-func (b *fixtureBackend) GetRefs() ([]git.Ref, error) {
+func (b *fixtureBackend) GetRefs() (git.Refs, error) {
 	return b.currentRefs, nil
 }
 

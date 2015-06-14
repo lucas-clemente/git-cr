@@ -15,7 +15,7 @@ type Delta interface{}
 type Backend interface {
 	FindDelta(from, to string) (Delta, error)
 
-	GetRefs() ([]Ref, error)
+	GetRefs() (Refs, error)
 
 	ReadPackfile(d Delta) (io.ReadCloser, error)
 

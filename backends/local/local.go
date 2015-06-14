@@ -19,7 +19,7 @@ func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
 	panic("not implemented")
 }
 
-func (b *localBackend) GetRefs() ([]git.Ref, error) {
+func (b *localBackend) GetRefs() (git.Refs, error) {
 	panic("not implemented")
 }
 

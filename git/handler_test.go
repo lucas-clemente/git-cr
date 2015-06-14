@@ -106,19 +106,21 @@ var _ = Describe("git server", func() {
 
 	Context("sending refs", func() {
 		It("sends reflist for pull", func() {
-			refs := []git.Ref{git.Ref{Name: "foo", Sha1: "bar"}}
+			refs := git.Refs{"HEAD": "bar", "foo": "bar"}
 			Ω(handler.SendRefs(refs, git.GitPull)).ShouldNot(HaveOccurred())
-			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("bar foo\000multi_ack_detailed side-band-64k thin-pack")))
-			Ω(encoder.data[1]).Should(BeNil())
+			Ω(encoder.data).Should(HaveLen(3))
+			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000multi_ack_detailed side-band-64k thin-pack")))
+			Ω(encoder.data[1]).Should(Equal([]byte("bar foo")))
+			Ω(encoder.data[2]).Should(BeNil())
 		})
 
 		It("sends reflist for push", func() {
-			refs := []git.Ref{git.Ref{Name: "foo", Sha1: "bar"}}
+			refs := git.Refs{"HEAD": "bar", "foo": "bar"}
 			Ω(handler.SendRefs(refs, git.GitPush)).ShouldNot(HaveOccurred())
-			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("bar foo\000delete-refs ofs-delta")))
-			Ω(encoder.data[1]).Should(BeNil())
+			Ω(encoder.data).Should(HaveLen(3))
+			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000delete-refs ofs-delta")))
+			Ω(encoder.data[1]).Should(Equal([]byte("bar foo")))
+			Ω(encoder.data[2]).Should(BeNil())
 		})
 	})
 

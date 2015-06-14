@@ -1,10 +1,7 @@
 package git
 
-// A Ref in git
-type Ref struct {
-	Name string
-	Sha1 string
-}
+// Refs is a list of ref in git, each mapping from the ref name to the commit SHA1
+type Refs map[string]string
 
 // A RefUpdate is sent by the client during pushes
 type RefUpdate struct {

@@ -19,6 +19,8 @@ var (
 	ErrorInvalidHaveLine = errors.New("invalid `have` line sent by client")
 	// ErrorInvalidPushRefsLine occurs if the client sends an invalid line during ref update
 	ErrorInvalidPushRefsLine = errors.New("invalid line sent by client during ref update")
+	// ErrorNoHead occurs if a repo has no HEAD
+	ErrorNoHead = errors.New("no HEAD in repo")
 )
 
 // A GitOperation can either be a pull or push
@@ -162,17 +164,31 @@ func (h *GitRequestHandler) ReceiveHandshake() (GitOperation, error) {
 }
 
 // SendRefs sends the given references to the client
-func (h *GitRequestHandler) SendRefs(refs []Ref, op GitOperation) error {
-	for i, r := range refs {
-		line := r.Sha1 + " " + r.Name
-		if i == 0 {
-			if op == GitPull {
-				line += "\000" + pullCapabilities
-			} else {
-				line += "\000" + pushCapabilities
-			}
+func (h *GitRequestHandler) SendRefs(refs Refs, op GitOperation) error {
+	if len(refs) == 0 {
+		return h.out.Encode(nil)
+	}
+
+	var caps string
+	if op == GitPull {
+		caps = pullCapabilities
+	} else {
+		caps = pushCapabilities
+	}
+
+	head, ok := refs["HEAD"]
+	if !ok {
+		return ErrorNoHead
+	}
+	if err := h.out.Encode([]byte(head + " HEAD\000" + caps)); err != nil {
+		return err
+	}
+
+	for name, sha1 := range refs {
+		if name == "HEAD" {
+			continue
 		}
-		if err := h.out.Encode([]byte(line)); err != nil {
+		if err := h.out.Encode([]byte(sha1 + " " + name)); err != nil {
 			return err
 		}
 	}
