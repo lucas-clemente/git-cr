@@ -1,4 +1,4 @@
-package git
+package merger
 
 import (
 	"bytes"
@@ -6,18 +6,20 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+
+	"github.com/lucas-clemente/git-cr/git"
 )
 
 // Merger is a wrapper around a git.Backend instance that merges multiple deltas into one.
 // E.g. if a backend knows how to get from A -> B and B -> C, Merger builds a delta from A -> C.
 type Merger struct {
-	ListingBackend
+	git.ListingBackend
 }
 
-var _ Backend = &Merger{}
+var _ git.Backend = &Merger{}
 
 // FindDelta finds a delta as described in Merger doc
-func (m *Merger) FindDelta(from, to string) (Delta, error) {
+func (m *Merger) FindDelta(from, to string) (git.Delta, error) {
 	ancestors, err := m.ListingBackend.ListAncestors(to)
 	if err != nil {
 		return nil, err
@@ -28,7 +30,7 @@ func (m *Merger) FindDelta(from, to string) (Delta, error) {
 			if err != nil {
 				return nil, err
 			}
-			return mergerDeltas([]Delta{delta}), nil
+			return mergerDeltas([]git.Delta{delta}), nil
 		}
 		deltas, err := m.FindDelta(from, ancestor)
 		if err == nil {
@@ -38,16 +40,16 @@ func (m *Merger) FindDelta(from, to string) (Delta, error) {
 			}
 			return append(deltas.(mergerDeltas), delta), nil
 		}
-		if err != ErrorDeltaNotFound {
+		if err != git.ErrorDeltaNotFound {
 			return nil, err
 		}
 	}
 
-	return nil, ErrorDeltaNotFound
+	return nil, git.ErrorDeltaNotFound
 }
 
 // ReadPackfile reads a packfile as described in Merger doc
-func (m *Merger) ReadPackfile(delta Delta) (io.ReadCloser, error) {
+func (m *Merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
 	deltas := delta.(mergerDeltas)
 	var packfiles [][]byte
 
@@ -70,9 +72,9 @@ func (m *Merger) ReadPackfile(delta Delta) (io.ReadCloser, error) {
 	return ioutil.NopCloser(bytes.NewBuffer(packfile)), nil
 }
 
-type mergerDeltas []Delta
+type mergerDeltas []git.Delta
 
-var _ Delta = &mergerDeltas{}
+var _ git.Delta = &mergerDeltas{}
 
 // MergePackfiles merges two packfiles
 func MergePackfiles(packfiles [][]byte) ([]byte, error) {
