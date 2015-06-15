@@ -43,7 +43,7 @@ func (b *localBackend) GetRefs() (git.Refs, error) {
 }
 
 func (b *localBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
-	panic("not implemented")
+	return os.Open(d.(string))
 }
 
 func (b *localBackend) UpdateRef(update git.RefUpdate) error {

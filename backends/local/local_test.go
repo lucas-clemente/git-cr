@@ -106,4 +106,18 @@ var _ = Describe("Local Backend", func() {
 			Ω(delta).ShouldNot(BeNil())
 		})
 	})
+
+	Context("reading packfiles", func() {
+		It("works", func() {
+			err := ioutil.WriteFile(tmpDir+"/from_to.pack", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			delta, err := backend.FindDelta("from", "to")
+			Ω(err).ShouldNot(HaveOccurred())
+			r, err := backend.ReadPackfile(delta)
+			Ω(err).ShouldNot(HaveOccurred())
+			data, err := ioutil.ReadAll(r)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(string(data)).Should(Equal("foobar"))
+		})
+	})
 })
