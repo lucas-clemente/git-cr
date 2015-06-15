@@ -13,9 +13,6 @@ import (
 type fixtureBackend struct {
 	currentRefs     git.Refs
 	packfilesFromTo map[string]map[string][]byte
-
-	pushedPackfiles [][]byte
-	pushedRevs      []string
 }
 
 var _ git.Backend = &fixtureBackend{}
@@ -73,8 +70,12 @@ func (b *fixtureBackend) WritePackfile(from, to string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	b.pushedPackfiles = append(b.pushedPackfiles, data)
-	b.pushedRevs = append(b.pushedRevs, to)
+	m, ok := b.packfilesFromTo[from]
+	if !ok {
+		b.packfilesFromTo[from] = map[string][]byte{}
+		m = b.packfilesFromTo[from]
+	}
+	m[to] = data
 	return nil
 }
 

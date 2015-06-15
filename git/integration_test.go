@@ -141,7 +141,7 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
-			Ω(backend.pushedRevs).Should(Equal([]string{"1a6d946069d483225913cf3b8ba8eae4c894c322"}))
+			Ω(backend.packfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
 			Ω(backend.currentRefs).Should(HaveLen(2))
 			Ω(backend.currentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
 		})
