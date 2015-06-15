@@ -5,6 +5,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/lucas-clemente/git-cr/git"
 )
@@ -19,7 +21,7 @@ func NewLocalBackend(path string) git.ListingBackend {
 }
 
 func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
-	filename := b.path + "/" + from + "_" + to + ".pack"
+	filename := b.buildPackfileName(from, to)
 	_, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return nil, git.ErrorDeltaNotFound
@@ -66,7 +68,7 @@ func (b *localBackend) UpdateRef(update git.RefUpdate) error {
 }
 
 func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {
-	file, err := os.Create(b.path + "/" + from + "_" + to + ".pack")
+	file, err := os.Create(b.buildPackfileName(from, to))
 	if err != nil {
 		return err
 	}
@@ -76,5 +78,16 @@ func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {
 }
 
 func (b *localBackend) ListAncestors(target string) ([]string, error) {
-	panic("not implemented")
+	matches, err := filepath.Glob(b.buildPackfileName("*", target))
+	if err != nil {
+		return nil, err
+	}
+	for i, m := range matches {
+		matches[i] = strings.TrimSuffix(strings.TrimPrefix(m, b.path+"/"), "_"+target+".pack")
+	}
+	return matches, nil
+}
+
+func (b *localBackend) buildPackfileName(from, to string) string {
+	return b.path + "/" + from + "_" + to + ".pack"
 }

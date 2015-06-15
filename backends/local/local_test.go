@@ -120,4 +120,24 @@ var _ = Describe("Local Backend", func() {
 			Ω(string(data)).Should(Equal("foobar"))
 		})
 	})
+
+	Context("listing ancestors", func() {
+		It("works", func() {
+			err := ioutil.WriteFile(tmpDir+"/foo_baz.pack", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			err = ioutil.WriteFile(tmpDir+"/foo_bar.pack", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			err = ioutil.WriteFile(tmpDir+"/fuu_bar.pack", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			ancestors, err := backend.ListAncestors("bar")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(ancestors).Should(Equal([]string{"foo", "fuu"}))
+		})
+
+		It("returns nil slice", func() {
+			ancestors, err := backend.ListAncestors("bar")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(ancestors).Should(HaveLen(0))
+		})
+	})
 })
