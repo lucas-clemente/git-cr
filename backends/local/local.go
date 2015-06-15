@@ -58,7 +58,13 @@ func (b *localBackend) UpdateRef(update git.RefUpdate) error {
 }
 
 func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {
-	panic("not implemented")
+	file, err := os.Create(b.path + "/" + from + "_" + to + ".pack")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(file, r)
+	return err
 }
 
 func (b *localBackend) ListAncestors(target string) ([]string, error) {

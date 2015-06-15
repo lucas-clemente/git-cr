@@ -1,6 +1,7 @@
 package local_test
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -82,6 +83,17 @@ var _ = Describe("Local Backend", func() {
 			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(data).Should(MatchJSON(`{"HEAD": "foobar","refs/heads/master":"barfoo"}`))
+		})
+	})
+
+	Context("writing packfiles", func() {
+		It("works", func() {
+			packfileReader := bytes.NewBufferString("foobar")
+			err := backend.WritePackfile("from", "to", packfileReader)
+			Ω(err).ShouldNot(HaveOccurred())
+			data, err := ioutil.ReadFile(tmpDir + "/from_to.pack")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(string(data)).Should(Equal("foobar"))
 		})
 	})
 })
