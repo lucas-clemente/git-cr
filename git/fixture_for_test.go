@@ -14,7 +14,6 @@ type fixtureBackend struct {
 	currentRefs     git.Refs
 	packfilesFromTo map[string]map[string][]byte
 
-	updatedRefs     []git.RefUpdate
 	pushedPackfiles [][]byte
 	pushedRevs      []string
 }
@@ -61,7 +60,11 @@ func (*fixtureBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 }
 
 func (b *fixtureBackend) UpdateRef(update git.RefUpdate) error {
-	b.updatedRefs = append(b.updatedRefs, update)
+	if update.NewID == "" {
+		delete(b.currentRefs, update.Name)
+	} else {
+		b.currentRefs[update.Name] = update.NewID
+	}
 	return nil
 }
 
