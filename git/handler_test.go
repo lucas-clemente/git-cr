@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 
+	"github.com/lucas-clemente/git-cr/backends/fixture"
 	"github.com/lucas-clemente/git-cr/git"
 
 	. "github.com/onsi/ginkgo"
@@ -46,14 +47,14 @@ var _ = Describe("git server", func() {
 	var (
 		decoder *sampleDecoder
 		encoder *sampleEncoder
-		backend *fixtureBackend
+		backend *fixture.FixtureBackend
 		handler *git.GitRequestHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
-		backend = newFixtureBackend()
+		backend = fixture.NewFixtureBackend()
 		handler = git.NewGitRequestHandler(encoder, decoder, backend)
 	})
 
@@ -152,7 +153,7 @@ var _ = Describe("git server", func() {
 
 	Context("negotiating packfiles", func() {
 		It("handles full deltas", func() {
-			backend.addPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			backend.AddPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				[]byte("done\n"),
@@ -169,7 +170,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles intermediate flushes", func() {
-			backend.addPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			backend.AddPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				nil,
@@ -189,7 +190,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with delta", func() {
-			backend.addPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			backend.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
 				[]byte("done"),
@@ -207,7 +208,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with delta and followup haves", func() {
-			backend.addPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			backend.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
 				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
@@ -227,7 +228,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with delta and irrelevant haves", func() {
-			backend.addPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			backend.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
 			decoder.setData(
 				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
@@ -246,8 +247,8 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles multiple wants", func() {
-			backend.addPackfile("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "NDIK")
-			backend.addPackfile("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2", "MjEK")
+			backend.AddPackfile("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "NDIK")
+			backend.AddPackfile("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2", "MjEK")
 			decoder.setData(
 				[]byte("have aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"),
 				[]byte("have bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1"),

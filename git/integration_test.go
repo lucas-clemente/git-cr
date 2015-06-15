@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bargez/pktline"
+	"github.com/lucas-clemente/git-cr/backends/fixture"
 	"github.com/lucas-clemente/git-cr/git"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,7 +23,7 @@ type pktlineDecoderWrapper struct {
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
-		backend  *fixtureBackend
+		backend  *fixture.FixtureBackend
 		server   *git.GitRequestHandler
 		listener net.Listener
 		port     string
@@ -34,12 +35,12 @@ var _ = Describe("integration with git", func() {
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		backend = newFixtureBackend()
-		backend.currentRefs = git.Refs{
+		backend = fixture.NewFixtureBackend()
+		backend.CurrentRefs = git.Refs{
 			"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 			"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 		}
-		backend.addPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
+		backend.AddPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
 
 		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())
@@ -89,9 +90,9 @@ var _ = Describe("integration with git", func() {
 		})
 
 		It("pulls updates", func() {
-			backend.currentRefs["HEAD"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
-			backend.currentRefs["refs/heads/master"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
-			backend.addPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
+			backend.CurrentRefs["HEAD"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
+			backend.CurrentRefs["refs/heads/master"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
+			backend.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
 			cmd := exec.Command("git", "pull")
 			cmd.Dir = tempDir
 			err := cmd.Run()
@@ -141,9 +142,9 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
-			Ω(backend.packfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
-			Ω(backend.currentRefs).Should(HaveLen(2))
-			Ω(backend.currentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
+			Ω(backend.PackfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
+			Ω(backend.CurrentRefs).Should(HaveLen(2))
+			Ω(backend.CurrentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
 		})
 
 		It("pushes deletes", func() {
@@ -153,7 +154,7 @@ var _ = Describe("integration with git", func() {
 			err := cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
-			Ω(backend.currentRefs).Should(HaveLen(1))
+			Ω(backend.CurrentRefs).Should(HaveLen(1))
 		})
 
 		It("pushes new branches", func() {
@@ -163,8 +164,8 @@ var _ = Describe("integration with git", func() {
 			err := cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
-			Ω(backend.currentRefs).Should(HaveLen(3))
-			Ω(backend.currentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+			Ω(backend.CurrentRefs).Should(HaveLen(3))
+			Ω(backend.CurrentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
 		})
 	})
 })
