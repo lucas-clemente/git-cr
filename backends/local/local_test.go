@@ -96,4 +96,14 @@ var _ = Describe("Local Backend", func() {
 			Ω(string(data)).Should(Equal("foobar"))
 		})
 	})
+
+	Context("getting deltas", func() {
+		It("works", func() {
+			err := ioutil.WriteFile(tmpDir+"/from_to.pack", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+			delta, err := backend.FindDelta("from", "to")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(delta).ShouldNot(BeNil())
+		})
+	})
 })

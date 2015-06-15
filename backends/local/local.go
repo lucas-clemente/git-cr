@@ -19,7 +19,15 @@ func NewLocalBackend(path string) git.ListingBackend {
 }
 
 func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
-	panic("not implemented")
+	filename := b.path + "/" + from + "_" + to + ".pack"
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return nil, git.ErrorDeltaNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return filename, nil
 }
 
 func (b *localBackend) GetRefs() (git.Refs, error) {
