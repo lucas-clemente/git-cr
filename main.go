@@ -69,6 +69,7 @@ func run(c *cli.Context) {
 	repo, err := local.NewLocalRepo(repoURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while initing the repo:\n%v\n", err)
+		os.Exit(1)
 	}
 
 	// Handle request
