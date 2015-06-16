@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
+	"github.com/bargez/pktline"
 	"github.com/codegangsta/cli"
+	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/repos/local"
 )
 
 func main() {
@@ -39,7 +43,7 @@ func add(c *cli.Context) {
 	}
 	remoteName := c.Args()[0]
 	remoteURL := c.Args()[1]
-	cmd := exec.Command("git", "remote", "add", remoteName, "ext::git cr run "+remoteURL)
+	cmd := exec.Command("git", "remote", "add", remoteName, "ext::git %G cr run "+remoteURL)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("git errored: %v\n%s", err, out)
@@ -47,6 +51,33 @@ func add(c *cli.Context) {
 	}
 }
 
-func run(c *cli.Context) {
+type pktlineDecoderWrapper struct {
+	*pktline.Decoder
+	io.Reader
+}
 
+func run(c *cli.Context) {
+	if len(c.Args()) != 1 {
+		fmt.Println("don't run this manually, checkout git cr help :)")
+		os.Exit(1)
+	}
+
+	repoURL := c.Args().First()
+
+	// Load repo
+
+	repo, err := local.NewLocalRepo(repoURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "an error occured while initing the repo:\n%v\n", err)
+	}
+
+	// Handle request
+
+	encoder := pktline.NewEncoder(os.Stdout)
+	decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(os.Stdin), Reader: os.Stdin}
+
+	server := git.NewGitRequestHandler(encoder, decoder, repo)
+	if err := server.ServeRequest(); err != nil {
+		fmt.Fprintf(os.Stderr, "an error occured while serving git:\n%v\n", err)
+	}
 }
