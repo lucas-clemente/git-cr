@@ -43,7 +43,7 @@ func add(c *cli.Context) {
 	}
 	remoteName := c.Args()[0]
 	remoteURL := c.Args()[1]
-	cmd := exec.Command("git", "remote", "add", remoteName, "ext::git %G cr run "+remoteURL)
+	cmd := exec.Command("git", "remote", "add", remoteName, "ext::git cr run "+remoteURL+" %G")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("git errored: %v\n%s", err, out)

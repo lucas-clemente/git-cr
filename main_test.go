@@ -58,7 +58,7 @@ var _ = Describe("Main", func() {
 		cmd = exec.Command("git", "remote", "-v")
 		output, err := cmd.CombinedOutput()
 		Ω(err).ShouldNot(HaveOccurred())
-		Ω(output).Should(ContainSubstring("origin\text::git %G cr run " + remoteDir))
+		Ω(output).Should(ContainSubstring("origin\text::git cr run " + remoteDir + " %G"))
 	})
 
 	It("pushes updates", func() {
@@ -67,7 +67,7 @@ var _ = Describe("Main", func() {
 		err := cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "remote", "add", "origin", "ext::"+pathToGitCR+" %G run "+remoteDir)
+		cmd = exec.Command("git", "remote", "add", "origin", "ext::"+pathToGitCR+" run "+remoteDir+" %G")
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
