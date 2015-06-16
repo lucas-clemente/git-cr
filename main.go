@@ -32,6 +32,11 @@ func mainWithArgs(args []string) {
 			Usage:  "Run the git server (should not be called manually)",
 			Action: run,
 		},
+		{
+			Name:   "clone",
+			Usage:  "Clone from a crypto remote",
+			Action: clone,
+		},
 	}
 	app.Run(args)
 }
@@ -43,7 +48,7 @@ func add(c *cli.Context) {
 	}
 	remoteName := c.Args()[0]
 	remoteURL := c.Args()[1]
-	cmd := exec.Command("git", "remote", "add", remoteName, "ext::git cr run "+remoteURL+" %G")
+	cmd := exec.Command("git", "remote", "add", remoteName, buildRemote(remoteURL))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("git errored: %v\n%s", err, out)
@@ -81,4 +86,25 @@ func run(c *cli.Context) {
 	if err := server.ServeRequest(); err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while serving git:\n%v\n", err)
 	}
+}
+
+func clone(c *cli.Context) {
+	if len(c.Args()) == 0 {
+		fmt.Println("usage: git cr clone <url> [destination]")
+		os.Exit(1)
+	}
+	remoteURL := c.Args()[0]
+
+	cloneArgs := []string{"clone", buildRemote(remoteURL)}
+	cloneArgs = append(cloneArgs, c.Args()[1:]...)
+	cmd := exec.Command("git", cloneArgs...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("git errored: %v\n%s", err, out)
+		os.Exit(1)
+	}
+}
+
+func buildRemote(url string) string {
+	return "ext::git cr %G run " + url
 }
