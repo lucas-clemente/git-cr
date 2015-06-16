@@ -24,7 +24,7 @@ type Backend interface {
 	WritePackfile(from, to string, r io.Reader) error
 }
 
-// A ListingBackend is a backend that supports listing all delta
+// A ListingBackend is a backend that supports listing all deltas
 type ListingBackend interface {
 	Backend
 

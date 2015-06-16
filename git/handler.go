@@ -28,16 +28,13 @@ type GitOperation int
 
 const (
 	// GitPull is a pull
-	GitPull GitOperation = iota
+	GitPull GitOperation = iota + 1
 	// GitPush is a push
 	GitPush
 )
 
 // GitRequestHandler handles the git protocol
 type GitRequestHandler struct {
-	Repo string
-	Host string
-
 	out Encoder
 	in  Decoder
 
@@ -135,39 +132,17 @@ func (h *GitRequestHandler) ServeRequest() error {
 func (h *GitRequestHandler) ReceiveHandshake() (GitOperation, error) {
 	// format: "git-[upload|receive]-pack repo-name\0host=host-name"
 	var handshake []byte
-	var op GitOperation
 
 	if err := h.in.Decode(&handshake); err != nil {
 		return 0, err
 	}
 
 	if bytes.HasPrefix(handshake, []byte("git-upload-pack ")) {
-		op = GitPull
-		handshake = handshake[len("git-upload-pack "):]
+		return GitPull, nil
 	} else if bytes.HasPrefix(handshake, []byte("git-receive-pack ")) {
-		op = GitPush
-		handshake = handshake[len("git-receive-pack "):]
-	} else {
-		return 0, ErrorInvalidHandshake
+		return GitPush, nil
 	}
-
-	nullPos := bytes.IndexByte(handshake, 0)
-	if nullPos == -1 || nullPos == 0 {
-		return 0, ErrorInvalidHandshake
-	}
-	h.Repo = string(handshake[:nullPos])
-	handshake = handshake[nullPos+1:]
-
-	if !bytes.HasPrefix(handshake, []byte("host=")) {
-		return 0, ErrorInvalidHandshake
-	}
-	handshake = handshake[len("host="):]
-	if len(handshake) == 0 {
-		return 0, ErrorInvalidHandshake
-	}
-	h.Host = string(handshake)
-
-	return op, nil
+	return 0, ErrorInvalidHandshake
 }
 
 // SendRefs sends the given references to the client

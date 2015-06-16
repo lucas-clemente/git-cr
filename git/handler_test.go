@@ -59,40 +59,11 @@ var _ = Describe("git server", func() {
 	})
 
 	Context("decoding client handshake", func() {
-		It("errors on invalid handshake", func() {
-			decoder.setData([]byte(""))
-			_, err := handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack "))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack foo"))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack \000"))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack foo\000"))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack foo\000host="))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack \000host=foo"))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-			decoder.setData([]byte("git-upload-pack \000host="))
-			_, err = handler.ReceiveHandshake()
-			Ω(err).Should(Equal(git.ErrorInvalidHandshake))
-		})
-
-		It("gets repo and host", func() {
+		It("handles pulls", func() {
 			decoder.setData([]byte("git-upload-pack foo\000host=bar"))
 			op, err := handler.ReceiveHandshake()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(op).Should(Equal(git.GitPull))
-			Ω(handler.Host).Should(Equal("bar"))
-			Ω(handler.Repo).Should(Equal("foo"))
 		})
 
 		It("handles pushes", func() {
@@ -100,8 +71,6 @@ var _ = Describe("git server", func() {
 			op, err := handler.ReceiveHandshake()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(op).Should(Equal(git.GitPush))
-			Ω(handler.Host).Should(Equal("bar"))
-			Ω(handler.Repo).Should(Equal("foo"))
 		})
 	})
 
