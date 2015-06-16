@@ -16,8 +16,11 @@ type localRepo struct {
 }
 
 // NewLocalRepo returns a repo that stores data in the given path
-func NewLocalRepo(path string) git.ListingRepo {
-	return &localRepo{path: path}
+func NewLocalRepo(path string) (git.ListingRepo, error) {
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return nil, err
+	}
+	return &localRepo{path: path}, nil
 }
 
 func (b *localRepo) FindDelta(from, to string) (git.Delta, error) {
@@ -35,6 +38,9 @@ func (b *localRepo) FindDelta(from, to string) (git.Delta, error) {
 func (b *localRepo) GetRefs() (git.Refs, error) {
 	data, err := ioutil.ReadFile(b.path + "/refs.json")
 	if err != nil {
+		if os.IsNotExist(err) {
+			return git.Refs{}, nil
+		}
 		return nil, err
 	}
 	var refs git.Refs

@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lucas-clemente/git-cr/repos/local"
 	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/repos/local"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,8 +20,8 @@ func TestLocalRepo(t *testing.T) {
 
 var _ = Describe("Local Repo", func() {
 	var (
-		tmpDir  string
-		repo git.ListingRepo
+		tmpDir string
+		repo   git.ListingRepo
 	)
 
 	BeforeEach(func() {
@@ -30,7 +30,8 @@ var _ = Describe("Local Repo", func() {
 		tmpDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		repo = local.NewLocalRepo(tmpDir)
+		repo, err = local.NewLocalRepo(tmpDir)
+		Ω(err).ShouldNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -49,10 +50,10 @@ var _ = Describe("Local Repo", func() {
 			}))
 		})
 
-		It("errors properly on new repos", func() {
-			_, err := repo.GetRefs()
-			Ω(err).ShouldNot(BeNil())
-			Ω(os.IsNotExist(err)).Should(BeTrue())
+		It("returns empty on new repos", func() {
+			refs, err := repo.GetRefs()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(refs).Should(HaveLen(0))
 		})
 	})
 
