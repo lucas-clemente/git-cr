@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/bargez/pktline"
 	"github.com/lucas-clemente/git-cr/backends/fixture"
@@ -35,10 +36,13 @@ var _ = Describe("integration with git", func() {
 		server   *git.GitRequestHandler
 		listener net.Listener
 		port     string
+		mutex    sync.Mutex
 	)
 
 	BeforeEach(func() {
 		var err error
+
+		mutex = sync.Mutex{}
 
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
@@ -59,6 +63,8 @@ var _ = Describe("integration with git", func() {
 				}
 				defer conn.Close()
 
+				mutex.Lock()
+
 				encoder := pktline.NewEncoder(conn)
 				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
 
@@ -66,6 +72,8 @@ var _ = Describe("integration with git", func() {
 				err = server.ServeRequest()
 				Ω(err).ShouldNot(HaveOccurred())
 				conn.Close()
+
+				mutex.Unlock()
 			}
 		}()
 
@@ -73,6 +81,8 @@ var _ = Describe("integration with git", func() {
 
 	AfterEach(func() {
 		listener.Close()
+		mutex.Lock()
+		mutex.Unlock()
 		os.RemoveAll(tempDir)
 	})
 
@@ -84,6 +94,9 @@ var _ = Describe("integration with git", func() {
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("bar\n")))
+
+			mutex.Lock()
+			mutex.Unlock()
 		})
 	})
 
@@ -148,6 +161,8 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
+			mutex.Lock()
+			mutex.Unlock()
 			Ω(backend.PackfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
 			Ω(backend.CurrentRefs).Should(HaveLen(2))
 			Ω(backend.CurrentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
@@ -160,6 +175,8 @@ var _ = Describe("integration with git", func() {
 			err := cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
+			mutex.Lock()
+			mutex.Unlock()
 			Ω(backend.CurrentRefs).Should(HaveLen(1))
 		})
 
@@ -170,6 +187,8 @@ var _ = Describe("integration with git", func() {
 			err := cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Verify
+			mutex.Lock()
+			mutex.Unlock()
 			Ω(backend.CurrentRefs).Should(HaveLen(3))
 			Ω(backend.CurrentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
 		})
@@ -212,9 +231,11 @@ var _ = Describe("integration with git", func() {
 
 			cmd = exec.Command("git", "push", "origin", "master")
 			cmd.Dir = tempDir
-			out, err := cmd.CombinedOutput()
-			println(string(out))
+			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
+
+			mutex.Lock()
+			mutex.Unlock()
 
 			// Clone into second dir
 			tempDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
