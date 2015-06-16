@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/bargez/pktline"
-	"github.com/lucas-clemente/git-cr/backends/fixture"
+	"github.com/lucas-clemente/git-cr/repos/fixture"
 	"github.com/lucas-clemente/git-cr/git"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,7 +21,7 @@ type pktlineDecoderWrapper struct {
 	io.Reader
 }
 
-func fillBackend(b *fixture.FixtureBackend) {
+func fillRepo(b *fixture.FixtureRepo) {
 	b.CurrentRefs = git.Refs{
 		"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 		"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
@@ -32,7 +32,7 @@ func fillBackend(b *fixture.FixtureBackend) {
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
-		backend  *fixture.FixtureBackend
+		repo  *fixture.FixtureRepo
 		server   *git.GitRequestHandler
 		listener net.Listener
 		port     string
@@ -47,7 +47,7 @@ var _ = Describe("integration with git", func() {
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		backend = fixture.NewFixtureBackend()
+		repo = fixture.NewFixtureRepo()
 
 		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())
@@ -68,7 +68,7 @@ var _ = Describe("integration with git", func() {
 				encoder := pktline.NewEncoder(conn)
 				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
 
-				server = git.NewGitRequestHandler(encoder, decoder, backend)
+				server = git.NewGitRequestHandler(encoder, decoder, repo)
 				err = server.ServeRequest()
 				Ω(err).ShouldNot(HaveOccurred())
 				conn.Close()
@@ -88,7 +88,7 @@ var _ = Describe("integration with git", func() {
 
 	Context("cloning", func() {
 		It("clones using git", func() {
-			fillBackend(backend)
+			fillRepo(repo)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
@@ -102,15 +102,15 @@ var _ = Describe("integration with git", func() {
 
 	Context("pulling", func() {
 		BeforeEach(func() {
-			fillBackend(backend)
+			fillRepo(repo)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 
 		It("pulls updates", func() {
-			backend.CurrentRefs["HEAD"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
-			backend.CurrentRefs["refs/heads/master"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
-			backend.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
+			repo.CurrentRefs["HEAD"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
+			repo.CurrentRefs["refs/heads/master"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
+			repo.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
 			cmd := exec.Command("git", "pull")
 			cmd.Dir = tempDir
 			err := cmd.Run()
@@ -123,7 +123,7 @@ var _ = Describe("integration with git", func() {
 
 	Context("pushing changes", func() {
 		BeforeEach(func() {
-			fillBackend(backend)
+			fillRepo(repo)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 		})
@@ -163,9 +163,9 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
-			Ω(backend.PackfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
-			Ω(backend.CurrentRefs).Should(HaveLen(2))
-			Ω(backend.CurrentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
+			Ω(repo.PackfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
+			Ω(repo.CurrentRefs).Should(HaveLen(2))
+			Ω(repo.CurrentRefs["refs/heads/master"]).Should(Equal("1a6d946069d483225913cf3b8ba8eae4c894c322"))
 		})
 
 		It("pushes deletes", func() {
@@ -177,7 +177,7 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
-			Ω(backend.CurrentRefs).Should(HaveLen(1))
+			Ω(repo.CurrentRefs).Should(HaveLen(1))
 		})
 
 		It("pushes new branches", func() {
@@ -189,8 +189,8 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
-			Ω(backend.CurrentRefs).Should(HaveLen(3))
-			Ω(backend.CurrentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+			Ω(repo.CurrentRefs).Should(HaveLen(3))
+			Ω(repo.CurrentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
 		})
 	})
 

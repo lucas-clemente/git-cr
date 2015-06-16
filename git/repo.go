@@ -5,14 +5,14 @@ import (
 	"io"
 )
 
-// ErrorDeltaNotFound should be returned by Backend implementations
+// ErrorDeltaNotFound should be returned by Repo implementations
 var ErrorDeltaNotFound = errors.New("delta not found")
 
 // A Delta is the difference between two commits
 type Delta interface{}
 
-// A Backend for git data
-type Backend interface {
+// A Repo for git data
+type Repo interface {
 	FindDelta(from, to string) (Delta, error)
 
 	GetRefs() (Refs, error)
@@ -24,9 +24,9 @@ type Backend interface {
 	WritePackfile(from, to string, r io.Reader) error
 }
 
-// A ListingBackend is a backend that supports listing all deltas
-type ListingBackend interface {
-	Backend
+// A ListingRepo is a repo that supports listing all deltas
+type ListingRepo interface {
+	Repo
 
 	ListAncestors(target string) ([]string, error)
 }

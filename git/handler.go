@@ -38,15 +38,15 @@ type GitRequestHandler struct {
 	out Encoder
 	in  Decoder
 
-	backend Backend
+	repo Repo
 }
 
 // NewGitRequestHandler makes a handler for the git protocol
-func NewGitRequestHandler(out Encoder, in Decoder, backend Backend) *GitRequestHandler {
+func NewGitRequestHandler(out Encoder, in Decoder, repo Repo) *GitRequestHandler {
 	return &GitRequestHandler{
-		out:     out,
-		in:      in,
-		backend: backend,
+		out:  out,
+		in:   in,
+		repo: repo,
 	}
 }
 
@@ -58,7 +58,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 	}
 
 	if op == GitPull {
-		refs, err := h.backend.GetRefs()
+		refs, err := h.repo.GetRefs()
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			panic("not implemented")
 		}
 
-		deltaReader, err := h.backend.ReadPackfile(deltas[0])
+		deltaReader, err := h.repo.ReadPackfile(deltas[0])
 		defer deltaReader.Close()
 		if err != nil {
 			return err
@@ -90,7 +90,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 	} else if op == GitPush {
-		refs, err := h.backend.GetRefs()
+		refs, err := h.repo.GetRefs()
 		if err != nil {
 			return err
 		}
@@ -107,18 +107,18 @@ func (h *GitRequestHandler) ServeRequest() error {
 			panic("not implemented")
 		}
 
-		if err := h.backend.UpdateRef(refUpdates[0]); err != nil {
+		if err := h.repo.UpdateRef(refUpdates[0]); err != nil {
 			return err
 		}
 
 		if refUpdates[0].Name == "refs/heads/master" && len(refUpdates[0].NewID) > 0 {
 			headUpdate := RefUpdate{Name: "HEAD", NewID: refUpdates[0].NewID}
-			if err := h.backend.UpdateRef(headUpdate); err != nil {
+			if err := h.repo.UpdateRef(headUpdate); err != nil {
 				return err
 			}
 		}
 
-		if err := h.backend.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
+		if err := h.repo.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
 			return err
 		}
 	} else {
@@ -203,7 +203,7 @@ func (h *GitRequestHandler) ReceivePullWants() ([]string, error) {
 	return refs, nil
 }
 
-// NegotiatePullPackfile receives the client's haves and uses the backend
+// NegotiatePullPackfile receives the client's haves and uses the repo
 // to calculate the deltas that should be sent to the client
 func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, error) {
 	// multi_ack_detailed implementation
@@ -247,7 +247,7 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, erro
 
 		// Check each unfulfilled want
 		for want := range unfulfilledWants {
-			delta, err := h.backend.FindDelta(have, want)
+			delta, err := h.repo.FindDelta(have, want)
 			if err == ErrorDeltaNotFound {
 				continue
 			}
@@ -271,7 +271,7 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, erro
 
 	// Left-over wants need to be delta'd from the beginning
 	for w := range unfulfilledWants {
-		delta, err := h.backend.FindDelta("", w)
+		delta, err := h.repo.FindDelta("", w)
 		if err != nil {
 			return nil, err
 		}

@@ -11,16 +11,16 @@ import (
 	"github.com/lucas-clemente/git-cr/git"
 )
 
-type localBackend struct {
+type localRepo struct {
 	path string
 }
 
-// NewLocalBackend returns a backend that stores data in the given path
-func NewLocalBackend(path string) git.ListingBackend {
-	return &localBackend{path: path}
+// NewLocalRepo returns a repo that stores data in the given path
+func NewLocalRepo(path string) git.ListingRepo {
+	return &localRepo{path: path}
 }
 
-func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
+func (b *localRepo) FindDelta(from, to string) (git.Delta, error) {
 	filename := b.buildPackfileName(from, to)
 	_, err := os.Stat(filename)
 	if os.IsNotExist(err) {
@@ -32,7 +32,7 @@ func (b *localBackend) FindDelta(from, to string) (git.Delta, error) {
 	return filename, nil
 }
 
-func (b *localBackend) GetRefs() (git.Refs, error) {
+func (b *localRepo) GetRefs() (git.Refs, error) {
 	data, err := ioutil.ReadFile(b.path + "/refs.json")
 	if err != nil {
 		return nil, err
@@ -44,11 +44,11 @@ func (b *localBackend) GetRefs() (git.Refs, error) {
 	return refs, nil
 }
 
-func (b *localBackend) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
+func (b *localRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 	return os.Open(d.(string))
 }
 
-func (b *localBackend) UpdateRef(update git.RefUpdate) error {
+func (b *localRepo) UpdateRef(update git.RefUpdate) error {
 	refs, err := b.GetRefs()
 	if os.IsNotExist(err) {
 		refs = git.Refs{}
@@ -67,7 +67,7 @@ func (b *localBackend) UpdateRef(update git.RefUpdate) error {
 	return ioutil.WriteFile(b.path+"/refs.json", data, 0644)
 }
 
-func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {
+func (b *localRepo) WritePackfile(from, to string, r io.Reader) error {
 	file, err := os.Create(b.buildPackfileName(from, to))
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (b *localBackend) WritePackfile(from, to string, r io.Reader) error {
 	return err
 }
 
-func (b *localBackend) ListAncestors(target string) ([]string, error) {
+func (b *localRepo) ListAncestors(target string) ([]string, error) {
 	matches, err := filepath.Glob(b.buildPackfileName("*", target))
 	if err != nil {
 		return nil, err
@@ -88,6 +88,6 @@ func (b *localBackend) ListAncestors(target string) ([]string, error) {
 	return matches, nil
 }
 
-func (b *localBackend) buildPackfileName(from, to string) string {
+func (b *localRepo) buildPackfileName(from, to string) string {
 	return b.path + "/" + from + "_" + to + ".pack"
 }
