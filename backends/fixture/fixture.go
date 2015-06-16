@@ -20,6 +20,7 @@ var _ git.ListingBackend = &FixtureBackend{}
 // NewFixtureBackend makes a new fixture backend
 func NewFixtureBackend() *FixtureBackend {
 	return &FixtureBackend{
+		CurrentRefs:     git.Refs{},
 		PackfilesFromTo: map[string]map[string][]byte{"": map[string][]byte{}},
 	}
 }

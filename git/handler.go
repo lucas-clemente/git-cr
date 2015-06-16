@@ -114,6 +114,13 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 
+		if refUpdates[0].Name == "refs/heads/master" && len(refUpdates[0].NewID) > 0 {
+			headUpdate := RefUpdate{Name: "HEAD", NewID: refUpdates[0].NewID}
+			if err := h.backend.UpdateRef(headUpdate); err != nil {
+				return err
+			}
+		}
+
 		if err := h.backend.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
 			return err
 		}

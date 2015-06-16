@@ -20,6 +20,14 @@ type pktlineDecoderWrapper struct {
 	io.Reader
 }
 
+func fillBackend(b *fixture.FixtureBackend) {
+	b.CurrentRefs = git.Refs{
+		"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+		"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+	}
+	b.AddPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
+}
+
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
@@ -36,11 +44,6 @@ var _ = Describe("integration with git", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 
 		backend = fixture.NewFixtureBackend()
-		backend.CurrentRefs = git.Refs{
-			"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
-			"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
-		}
-		backend.AddPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
 
 		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())
@@ -75,6 +78,7 @@ var _ = Describe("integration with git", func() {
 
 	Context("cloning", func() {
 		It("clones using git", func() {
+			fillBackend(backend)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
@@ -85,6 +89,7 @@ var _ = Describe("integration with git", func() {
 
 	Context("pulling", func() {
 		BeforeEach(func() {
+			fillBackend(backend)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 		})
@@ -103,8 +108,9 @@ var _ = Describe("integration with git", func() {
 		})
 	})
 
-	Context("pushing", func() {
+	Context("pushing changes", func() {
 		BeforeEach(func() {
+			fillBackend(backend)
 			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 		})
@@ -166,6 +172,60 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			Ω(backend.CurrentRefs).Should(HaveLen(3))
 			Ω(backend.CurrentRefs["refs/heads/foobar"]).Should(Equal("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+		})
+	})
+
+	Context("pushing into empty repos", func() {
+		It("works", func() {
+			cmd := exec.Command("git", "init")
+			cmd.Dir = tempDir
+			err := cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			err = ioutil.WriteFile(tempDir+"/foo", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			cmd = exec.Command("git", "add", "foo")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			// Settings
+			cmd = exec.Command("git", "config", "user.name", "test")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			cmd = exec.Command("git", "config", "user.email", "test@example.com")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			cmd = exec.Command("git", "commit", "-m", "test")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			cmd = exec.Command("git", "remote", "add", "origin", "git://localhost:"+port+"/repo")
+			cmd.Dir = tempDir
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			cmd = exec.Command("git", "push", "origin", "master")
+			cmd.Dir = tempDir
+			out, err := cmd.CombinedOutput()
+			println(string(out))
+			Ω(err).ShouldNot(HaveOccurred())
+
+			// Clone into second dir
+			tempDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
+			Ω(err).ShouldNot(HaveOccurred())
+			defer os.RemoveAll(tempDir2)
+
+			err = exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir2).Run()
+			Ω(err).ShouldNot(HaveOccurred())
+			contents, err := ioutil.ReadFile(tempDir2 + "/foo")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(contents).Should(Equal([]byte("foobar")))
 		})
 	})
 })
