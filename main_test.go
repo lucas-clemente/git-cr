@@ -34,6 +34,7 @@ var _ = Describe("Main", func() {
 		workingDir  string
 		remoteDir   string
 		pathToGitCR string
+		remoteURL   string
 	)
 
 	BeforeSuite(func() {
@@ -52,6 +53,8 @@ var _ = Describe("Main", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 		remoteDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
+
+		remoteURL = "ext::" + pathToGitCR + " %G run " + remoteDir
 	})
 
 	AfterEach(func() {
@@ -60,26 +63,30 @@ var _ = Describe("Main", func() {
 	})
 
 	It("adds remotes", func() {
-		Ω(os.Chdir(workingDir)).ShouldNot(HaveOccurred())
-		cmd := exec.Command("git", "init")
+		cmd := exec.Command("git", "init", workingDir)
 		err := cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		mainWithArgs([]string{"", "add", "origin", remoteDir})
+		cmd = exec.Command(pathToGitCR, "add", "origin", remoteDir)
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
 
 		cmd = exec.Command("git", "remote", "-v")
+		cmd.Dir = workingDir
 		output, err := cmd.CombinedOutput()
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(output).Should(ContainSubstring("origin\text::git cr %G run " + remoteDir))
 	})
 
 	It("pushes updates", func() {
-		Ω(os.Chdir(workingDir)).ShouldNot(HaveOccurred())
 		cmd := exec.Command("git", "init")
+		cmd.Dir = workingDir
 		err := cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "remote", "add", "origin", "ext::"+pathToGitCR+" %G run "+remoteDir)
+		cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
+		cmd.Dir = workingDir
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
@@ -87,23 +94,24 @@ var _ = Describe("Main", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 
 		cmd = exec.Command("git", "add", "foo")
+		cmd.Dir = workingDir
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
 		configGit(workingDir)
 
 		cmd = exec.Command("git", "commit", "-m", "test")
+		cmd.Dir = workingDir
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
 		cmd = exec.Command("git", "push", "origin", "master")
+		cmd.Dir = workingDir
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 
 	It("clones", func() {
-		Ω(os.Chdir(workingDir)).ShouldNot(HaveOccurred())
-
 		err := ioutil.WriteFile(remoteDir+"/refs.json", []byte(`{"HEAD":"f84b0d7375bcb16dd2742344e6af173aeebfcfd6","refs/heads/master":"f84b0d7375bcb16dd2742344e6af173aeebfcfd6"}`), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
@@ -112,9 +120,11 @@ var _ = Describe("Main", func() {
 		err = ioutil.WriteFile(remoteDir+"/_f84b0d7375bcb16dd2742344e6af173aeebfcfd6.pack", pack, 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		mainWithArgs([]string{"", "clone", remoteDir, "."})
+		cmd := exec.Command(pathToGitCR, "clone", remoteDir, workingDir)
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
 
-		data, err := ioutil.ReadFile("foo")
+		data, err := ioutil.ReadFile(workingDir + "/foo")
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(data).Should(Equal([]byte("bar\n")))
 	})
