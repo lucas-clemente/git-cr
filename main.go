@@ -14,10 +14,6 @@ import (
 )
 
 func main() {
-	mainWithArgs(os.Args)
-}
-
-func mainWithArgs(args []string) {
 	app := cli.NewApp()
 	app.Name = "git cr"
 	app.Usage = "Encrypted git remote"
@@ -39,7 +35,7 @@ func mainWithArgs(args []string) {
 			Action: clone,
 		},
 	}
-	app.Run(args)
+	app.Run(os.Args)
 }
 
 func add(c *cli.Context) {
