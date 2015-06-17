@@ -18,6 +18,17 @@ func TestGitCr(t *testing.T) {
 	RunSpecs(t, "Main Suite")
 }
 
+func configGit(dir string) {
+	cmd := exec.Command("git", "config", "user.name", "test")
+	cmd.Dir = dir
+	err := cmd.Run()
+	Ω(err).ShouldNot(HaveOccurred())
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = dir
+	err = cmd.Run()
+	Ω(err).ShouldNot(HaveOccurred())
+}
+
 var _ = Describe("Main", func() {
 	var (
 		workingDir  string
@@ -79,12 +90,7 @@ var _ = Describe("Main", func() {
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "config", "user.name", "test")
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-		cmd = exec.Command("git", "config", "user.email", "test@example.com")
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
+		configGit(workingDir)
 
 		cmd = exec.Command("git", "commit", "-m", "test")
 		err = cmd.Run()

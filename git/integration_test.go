@@ -1,6 +1,7 @@
 package git_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -10,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/bargez/pktline"
-	"github.com/lucas-clemente/git-cr/repos/fixture"
 	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/repos/fixture"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,10 +30,21 @@ func fillRepo(b *fixture.FixtureRepo) {
 	b.AddPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
 }
 
+func configGit(dir string) {
+	cmd := exec.Command("git", "config", "user.name", "test")
+	cmd.Dir = dir
+	err := cmd.Run()
+	Ω(err).ShouldNot(HaveOccurred())
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = dir
+	err = cmd.Run()
+	Ω(err).ShouldNot(HaveOccurred())
+}
+
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
-		repo  *fixture.FixtureRepo
+		repo     *fixture.FixtureRepo
 		server   *git.GitRequestHandler
 		listener net.Listener
 		port     string
@@ -70,6 +82,9 @@ var _ = Describe("integration with git", func() {
 
 				server = git.NewGitRequestHandler(encoder, decoder, repo)
 				err = server.ServeRequest()
+				if err != nil {
+					fmt.Println(err.Error())
+				}
 				Ω(err).ShouldNot(HaveOccurred())
 				conn.Close()
 
@@ -138,14 +153,7 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Settings
-			cmd = exec.Command("git", "config", "user.name", "test")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
-			cmd = exec.Command("git", "config", "user.email", "test@example.com")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			configGit(tempDir)
 			// Commit
 			cmd = exec.Command("git", "commit", "--message=msg")
 			cmd.Dir = tempDir
@@ -209,15 +217,7 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 
-			// Settings
-			cmd = exec.Command("git", "config", "user.name", "test")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
-			cmd = exec.Command("git", "config", "user.email", "test@example.com")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			configGit(tempDir)
 
 			cmd = exec.Command("git", "commit", "-m", "test")
 			cmd.Dir = tempDir
