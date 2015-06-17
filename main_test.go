@@ -128,4 +128,74 @@ var _ = Describe("Main", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(data).Should(Equal([]byte("bar\n")))
 	})
+
+	It("force-pushes and clones", func() {
+		cmd := exec.Command("git", "init")
+		cmd.Dir = workingDir
+		err := cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		configGit(workingDir)
+
+		err = ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "add", "foo")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "commit", "-m", "test")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		err = ioutil.WriteFile(workingDir+"/bar", []byte("foobaz"), 0644)
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "add", "bar")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "commit", "-m", "test2")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "push", "origin", "master")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "reset", "--hard", "HEAD^")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		cmd = exec.Command("git", "push", "-f", "origin", "master")
+		cmd.Dir = workingDir
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		// Now try cloning
+
+		workingDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
+		Ω(err).ShouldNot(HaveOccurred())
+		defer os.RemoveAll(workingDir2)
+
+		cmd = exec.Command("git", "clone", remoteURL, workingDir2)
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+		contents, err := ioutil.ReadFile(workingDir2 + "/foo")
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(contents).Should(Equal([]byte("foobar")))
+		_, err = ioutil.ReadFile(workingDir2 + "/bar")
+		Ω(os.IsNotExist(err)).Should(BeTrue())
+	})
 })

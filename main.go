@@ -9,6 +9,7 @@ import (
 	"github.com/bargez/pktline"
 	"github.com/codegangsta/cli"
 	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/merger"
 	"github.com/lucas-clemente/git-cr/repos/local"
 )
 
@@ -77,12 +78,14 @@ func run(c *cli.Context) {
 		os.Exit(1)
 	}
 
+	mergedRepo := &merger.Merger{ListingRepo: repo}
+
 	// Handle request
 
 	encoder := pktline.NewEncoder(os.Stdout)
 	decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(os.Stdin), Reader: os.Stdin}
 
-	server := git.NewGitRequestHandler(encoder, decoder, repo)
+	server := git.NewGitRequestHandler(encoder, decoder, mergedRepo)
 	if err := server.ServeRequest(); err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while serving git:\n%v\n", err)
 	}
