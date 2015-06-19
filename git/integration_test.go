@@ -30,15 +30,16 @@ func fillRepo(b *fixture.FixtureRepo) {
 	b.AddPackfile("", "f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "UEFDSwAAAAIAAAADlwt4nJ3MQQrCMBBA0X1OMXtBJk7SdEBEcOslJmGCgaSFdnp/ET2By7f43zZVmAS5RC46a/Y55lBnDhE9kk6pVs4klL2ok8Ne6wbPo8gOj65DF1O49o/v5edzW2/gAxEnShzghBdEV9Yxmpn+V7u2NGvS4btxb5cEOSI0eJxLSiziAgADnQFArwF4nDM0MDAzMVFIy89nCBc7Fdl++mdt9lZPhX3L1t5T0W1/BgCtgg0ijmEEgEsIHYPJopDmNYTk3nR5stM=")
 }
 
-func configGit(dir string) {
-	cmd := exec.Command("git", "config", "user.name", "test")
+func runCommandInDir(dir, command string, args ...string) {
+	cmd := exec.Command(command, args...)
 	cmd.Dir = dir
 	err := cmd.Run()
 	Ω(err).ShouldNot(HaveOccurred())
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
-	cmd.Dir = dir
-	err = cmd.Run()
-	Ω(err).ShouldNot(HaveOccurred())
+}
+
+func configGit(dir string) {
+	runCommandInDir(dir, "git", "config", "user.name", "test")
+	runCommandInDir(dir, "git", "config", "user.email", "test@example.com")
 }
 
 var _ = Describe("integration with git", func() {
@@ -104,8 +105,7 @@ var _ = Describe("integration with git", func() {
 	Context("cloning", func() {
 		It("clones using git", func() {
 			fillRepo(repo)
-			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("bar\n")))
@@ -118,18 +118,14 @@ var _ = Describe("integration with git", func() {
 	Context("pulling", func() {
 		BeforeEach(func() {
 			fillRepo(repo)
-			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
 		})
 
 		It("pulls updates", func() {
 			repo.CurrentRefs["HEAD"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
 			repo.CurrentRefs["refs/heads/master"] = "1a6d946069d483225913cf3b8ba8eae4c894c322"
 			repo.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
-			cmd := exec.Command("git", "pull")
-			cmd.Dir = tempDir
-			err := cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "pull")
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("baz")))
@@ -139,8 +135,7 @@ var _ = Describe("integration with git", func() {
 	Context("pushing changes", func() {
 		BeforeEach(func() {
 			fillRepo(repo)
-			err := exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir).Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
 		})
 
 		It("pushes updates", func() {
@@ -148,14 +143,11 @@ var _ = Describe("integration with git", func() {
 			err := ioutil.WriteFile(tempDir+"/foo", []byte("baz"), 0644)
 			Ω(err).ShouldNot(HaveOccurred())
 			// Add
-			cmd := exec.Command("git", "add", "foo")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "add", "foo")
 			// Settings
 			configGit(tempDir)
 			// Commit
-			cmd = exec.Command("git", "commit", "--message=msg")
+			cmd := exec.Command("git", "commit", "--message=msg")
 			cmd.Dir = tempDir
 			cmd.Env = []string{
 				"GIT_COMMITTER_DATE=Thu Jun 11 11:01:22 2015 +0200",
@@ -164,10 +156,7 @@ var _ = Describe("integration with git", func() {
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			// Push
-			cmd = exec.Command("git", "push")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "push")
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
@@ -178,10 +167,7 @@ var _ = Describe("integration with git", func() {
 
 		It("pushes deletes", func() {
 			// Push
-			cmd := exec.Command("git", "push", "origin", ":master")
-			cmd.Dir = tempDir
-			err := cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "push", "origin", ":master")
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
@@ -190,10 +176,7 @@ var _ = Describe("integration with git", func() {
 
 		It("pushes new branches", func() {
 			// Push
-			cmd := exec.Command("git", "push", "origin", "master:foobar")
-			cmd.Dir = tempDir
-			err := cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "push", "origin", "master:foobar")
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
@@ -204,35 +187,16 @@ var _ = Describe("integration with git", func() {
 
 	Context("pushing into empty repos", func() {
 		It("works", func() {
-			cmd := exec.Command("git", "init")
-			cmd.Dir = tempDir
-			err := cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
-
-			err = ioutil.WriteFile(tempDir+"/foo", []byte("foobar"), 0644)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			cmd = exec.Command("git", "add", "foo")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
-
+			runCommandInDir(tempDir, "git", "init")
 			configGit(tempDir)
 
-			cmd = exec.Command("git", "commit", "-m", "test")
-			cmd.Dir = tempDir
-			err = cmd.Run()
+			err := ioutil.WriteFile(tempDir+"/foo", []byte("foobar"), 0644)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			cmd = exec.Command("git", "remote", "add", "origin", "git://localhost:"+port+"/repo")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
-
-			cmd = exec.Command("git", "push", "origin", "master")
-			cmd.Dir = tempDir
-			err = cmd.Run()
-			Ω(err).ShouldNot(HaveOccurred())
+			runCommandInDir(tempDir, "git", "add", "foo")
+			runCommandInDir(tempDir, "git", "commit", "-m", "test")
+			runCommandInDir(tempDir, "git", "remote", "add", "origin", "git://localhost:"+port+"/repo")
+			runCommandInDir(tempDir, "git", "push", "origin", "master")
 
 			mutex.Lock()
 			mutex.Unlock()

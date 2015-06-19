@@ -18,15 +18,16 @@ func TestGitCr(t *testing.T) {
 	RunSpecs(t, "Main Suite")
 }
 
-func configGit(dir string) {
-	cmd := exec.Command("git", "config", "user.name", "test")
+func runCommandInDir(dir, command string, args ...string) {
+	cmd := exec.Command(command, args...)
 	cmd.Dir = dir
 	err := cmd.Run()
 	Ω(err).ShouldNot(HaveOccurred())
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
-	cmd.Dir = dir
-	err = cmd.Run()
-	Ω(err).ShouldNot(HaveOccurred())
+}
+
+func configGit(dir string) {
+	runCommandInDir(dir, "git", "config", "user.name", "test")
+	runCommandInDir(dir, "git", "config", "user.email", "test@example.com")
 }
 
 var _ = Describe("Main", func() {
@@ -67,10 +68,7 @@ var _ = Describe("Main", func() {
 		err := cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command(pathToGitCR, "add", "origin", remoteDir)
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, pathToGitCR, "add", "origin", remoteDir)
 
 		cmd = exec.Command("git", "remote", "-v")
 		cmd.Dir = workingDir
@@ -80,35 +78,17 @@ var _ = Describe("Main", func() {
 	})
 
 	It("pushes updates", func() {
-		cmd := exec.Command("git", "init")
-		cmd.Dir = workingDir
-		err := cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		err = ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "add", "foo")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
+		runCommandInDir(workingDir, "git", "init")
 		configGit(workingDir)
 
-		cmd = exec.Command("git", "commit", "-m", "test")
-		cmd.Dir = workingDir
-		err = cmd.Run()
+		runCommandInDir(workingDir, "git", "remote", "add", "origin", remoteURL)
+
+		err := ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "push", "origin", "master")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, "git", "add", "foo")
+		runCommandInDir(workingDir, "git", "commit", "-m", "test")
+		runCommandInDir(workingDir, "git", "push", "origin", "master")
 	})
 
 	It("clones", func() {
@@ -130,58 +110,24 @@ var _ = Describe("Main", func() {
 	})
 
 	It("force-pushes and clones", func() {
-		cmd := exec.Command("git", "init")
-		cmd.Dir = workingDir
-		err := cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
+		runCommandInDir(workingDir, "git", "init")
 		configGit(workingDir)
 
-		err = ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
+		err := ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "add", "foo")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "commit", "-m", "test")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, "git", "add", "foo")
+		runCommandInDir(workingDir, "git", "commit", "-m", "test")
 
 		err = ioutil.WriteFile(workingDir+"/bar", []byte("foobaz"), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd = exec.Command("git", "add", "bar")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "commit", "-m", "test2")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "push", "origin", "master")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "reset", "--hard", "HEAD^")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		cmd = exec.Command("git", "push", "-f", "origin", "master")
-		cmd.Dir = workingDir
-		err = cmd.Run()
-		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, "git", "add", "bar")
+		runCommandInDir(workingDir, "git", "commit", "-m", "test2")
+		runCommandInDir(workingDir, "git", "remote", "add", "origin", remoteURL)
+		runCommandInDir(workingDir, "git", "push", "origin", "master")
+		runCommandInDir(workingDir, "git", "reset", "--hard", "HEAD^")
+		runCommandInDir(workingDir, "git", "push", "-f", "origin", "master")
 
 		// Now try cloning
 
@@ -189,9 +135,10 @@ var _ = Describe("Main", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 		defer os.RemoveAll(workingDir2)
 
-		cmd = exec.Command("git", "clone", remoteURL, workingDir2)
+		cmd := exec.Command("git", "clone", remoteURL, workingDir2)
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
+
 		contents, err := ioutil.ReadFile(workingDir2 + "/foo")
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(contents).Should(Equal([]byte("foobar")))
