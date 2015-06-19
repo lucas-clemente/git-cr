@@ -115,13 +115,11 @@ var _ = Describe("Main", func() {
 
 		err := ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
-
 		runCommandInDir(workingDir, "git", "add", "foo")
 		runCommandInDir(workingDir, "git", "commit", "-m", "test")
 
 		err = ioutil.WriteFile(workingDir+"/bar", []byte("foobaz"), 0644)
 		Ω(err).ShouldNot(HaveOccurred())
-
 		runCommandInDir(workingDir, "git", "add", "bar")
 		runCommandInDir(workingDir, "git", "commit", "-m", "test2")
 		runCommandInDir(workingDir, "git", "remote", "add", "origin", remoteURL)
@@ -144,5 +142,40 @@ var _ = Describe("Main", func() {
 		Ω(contents).Should(Equal([]byte("foobar")))
 		_, err = ioutil.ReadFile(workingDir2 + "/bar")
 		Ω(os.IsNotExist(err)).Should(BeTrue())
+	})
+
+	It("pushes multiple times and clones", func() {
+		runCommandInDir(workingDir, "git", "init")
+		configGit(workingDir)
+
+		err := ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
+		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, "git", "add", "foo")
+		runCommandInDir(workingDir, "git", "commit", "-m", "test")
+		runCommandInDir(workingDir, "git", "remote", "add", "origin", remoteURL)
+		runCommandInDir(workingDir, "git", "push", "origin", "master")
+
+		err = ioutil.WriteFile(workingDir+"/bar", []byte("foobaz"), 0644)
+		Ω(err).ShouldNot(HaveOccurred())
+		runCommandInDir(workingDir, "git", "add", "bar")
+		runCommandInDir(workingDir, "git", "commit", "-m", "test2")
+		runCommandInDir(workingDir, "git", "push", "origin", "master")
+
+		// Now try cloning
+
+		workingDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
+		Ω(err).ShouldNot(HaveOccurred())
+		defer os.RemoveAll(workingDir2)
+
+		cmd := exec.Command("git", "clone", remoteURL, workingDir2)
+		err = cmd.Run()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		contents, err := ioutil.ReadFile(workingDir2 + "/foo")
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(contents).Should(Equal([]byte("foobar")))
+		contents, err = ioutil.ReadFile(workingDir2 + "/bar")
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(contents).Should(Equal([]byte("foobaz")))
 	})
 })
