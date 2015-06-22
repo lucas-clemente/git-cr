@@ -74,7 +74,7 @@ func run(c *cli.Context) {
 		os.Exit(1)
 	}
 
-	mergedRepo := &merger.Merger{ListingRepo: repo}
+	mergedRepo := &merger.Merger{Repo: repo}
 
 	// Handle request
 

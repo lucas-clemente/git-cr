@@ -58,7 +58,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 	}
 
 	if op == GitPull {
-		refs, err := h.repo.GetRefs()
+		refs, err := h.repo.ReadRefs()
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 	} else if op == GitPush {
-		refs, err := h.repo.GetRefs()
+		refs, err := h.repo.ReadRefs()
 		if err != nil {
 			return err
 		}

@@ -13,20 +13,20 @@ import (
 // Merger is a wrapper around a git.Repo instance that merges multiple deltas into one.
 // E.g. if a repo knows how to get from A -> B and B -> C, Merger builds a delta from A -> C.
 type Merger struct {
-	git.ListingRepo
+	git.Repo
 }
 
 var _ git.Repo = &Merger{}
 
 // FindDelta finds a delta as described in Merger doc
 func (m *Merger) FindDelta(from, to string) (git.Delta, error) {
-	ancestors, err := m.ListingRepo.ListAncestors(to)
+	ancestors, err := m.Repo.ListAncestors(to)
 	if err != nil {
 		return nil, err
 	}
 	for _, ancestor := range ancestors {
 		if ancestor == from {
-			delta, err := m.ListingRepo.FindDelta(from, to)
+			delta, err := m.Repo.FindDelta(from, to)
 			if err != nil {
 				return nil, err
 			}
@@ -34,7 +34,7 @@ func (m *Merger) FindDelta(from, to string) (git.Delta, error) {
 		}
 		deltas, err := m.FindDelta(from, ancestor)
 		if err == nil {
-			delta, err := m.ListingRepo.FindDelta(ancestor, to)
+			delta, err := m.Repo.FindDelta(ancestor, to)
 			if err != nil {
 				return nil, err
 			}
@@ -54,7 +54,7 @@ func (m *Merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
 	var packfiles [][]byte
 
 	for _, d := range deltas {
-		reader, err := m.ListingRepo.ReadPackfile(d)
+		reader, err := m.Repo.ReadPackfile(d)
 		if err != nil {
 			return nil, err
 		}

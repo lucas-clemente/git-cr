@@ -15,7 +15,7 @@ type FixtureRepo struct {
 	PackfilesFromTo map[string]map[string][]byte
 }
 
-var _ git.ListingRepo = &FixtureRepo{}
+var _ git.Repo = &FixtureRepo{}
 
 // NewFixtureRepo makes a new fixture repo
 func NewFixtureRepo() *FixtureRepo {
@@ -52,8 +52,8 @@ func (b *FixtureRepo) FindDelta(from, to string) (git.Delta, error) {
 	return ioutil.NopCloser(bytes.NewBuffer(p)), nil
 }
 
-// GetRefs implements git.Repo
-func (b *FixtureRepo) GetRefs() (git.Refs, error) {
+// ReadRefs implements git.Repo
+func (b *FixtureRepo) ReadRefs() (git.Refs, error) {
 	return b.CurrentRefs, nil
 }
 

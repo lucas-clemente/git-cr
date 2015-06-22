@@ -21,7 +21,7 @@ func TestLocalRepo(t *testing.T) {
 var _ = Describe("Local Repo", func() {
 	var (
 		tmpDir string
-		repo   git.ListingRepo
+		repo   git.Repo
 	)
 
 	BeforeEach(func() {
@@ -42,7 +42,7 @@ var _ = Describe("Local Repo", func() {
 		It("works", func() {
 			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
 			Ω(err).ShouldNot(HaveOccurred())
-			refs, err := repo.GetRefs()
+			refs, err := repo.ReadRefs()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(refs).Should(Equal(git.Refs{
 				"HEAD":              "foobar",
@@ -51,7 +51,7 @@ var _ = Describe("Local Repo", func() {
 		})
 
 		It("returns empty on new repos", func() {
-			refs, err := repo.GetRefs()
+			refs, err := repo.ReadRefs()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(refs).Should(HaveLen(0))
 		})
