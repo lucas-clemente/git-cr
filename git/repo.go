@@ -16,8 +16,8 @@ type Repo interface {
 	FindDelta(from, to string) (Delta, error)
 	ListAncestors(target string) ([]string, error)
 
-	ReadRefs() (Refs, error)
-	UpdateRef(update RefUpdate) error
+	ReadRefs() (io.ReadCloser, error)
+	WriteRefs(io.Reader) error
 
 	ReadPackfile(d Delta) (io.ReadCloser, error)
 	WritePackfile(from, to string, r io.Reader) error

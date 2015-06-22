@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 
-	"github.com/lucas-clemente/git-cr/repos/fixture"
 	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/repos/fixture"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -76,7 +76,7 @@ var _ = Describe("git server", func() {
 
 	Context("sending refs", func() {
 		It("sends reflist for pull", func() {
-			refs := git.Refs{"HEAD": "bar", "foo": "bar"}
+			refs := map[string]string{"HEAD": "bar", "foo": "bar"}
 			Ω(handler.SendRefs(refs, git.GitPull)).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000multi_ack_detailed side-band-64k thin-pack")))
@@ -85,7 +85,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("sends reflist for push", func() {
-			refs := git.Refs{"HEAD": "bar", "foo": "bar"}
+			refs := map[string]string{"HEAD": "bar", "foo": "bar"}
 			Ω(handler.SendRefs(refs, git.GitPush)).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000delete-refs ofs-delta")))

@@ -3,6 +3,7 @@ package fixture
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 
@@ -11,7 +12,7 @@ import (
 
 // A FixtureRepo for tests
 type FixtureRepo struct {
-	CurrentRefs     git.Refs
+	CurrentRefs     map[string]string
 	PackfilesFromTo map[string]map[string][]byte
 }
 
@@ -20,7 +21,7 @@ var _ git.Repo = &FixtureRepo{}
 // NewFixtureRepo makes a new fixture repo
 func NewFixtureRepo() *FixtureRepo {
 	return &FixtureRepo{
-		CurrentRefs:     git.Refs{},
+		CurrentRefs:     map[string]string{},
 		PackfilesFromTo: map[string]map[string][]byte{"": map[string][]byte{}},
 	}
 }
@@ -53,23 +54,25 @@ func (b *FixtureRepo) FindDelta(from, to string) (git.Delta, error) {
 }
 
 // ReadRefs implements git.Repo
-func (b *FixtureRepo) ReadRefs() (git.Refs, error) {
-	return b.CurrentRefs, nil
+func (b *FixtureRepo) ReadRefs() (io.ReadCloser, error) {
+	data, err := json.Marshal(b.CurrentRefs)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(data)), nil
+}
+
+// WriteRefs implements git.Repo
+func (b *FixtureRepo) WriteRefs(r io.Reader) error {
+	var refs map[string]string
+	err := json.NewDecoder(r).Decode(&refs)
+	b.CurrentRefs = refs
+	return err
 }
 
 // ReadPackfile implements git.Repo
 func (*FixtureRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 	return d.(io.ReadCloser), nil
-}
-
-// UpdateRef implements git.Repo
-func (b *FixtureRepo) UpdateRef(update git.RefUpdate) error {
-	if update.NewID == "" {
-		delete(b.CurrentRefs, update.Name)
-	} else {
-		b.CurrentRefs[update.Name] = update.NewID
-	}
-	return nil
 }
 
 // WritePackfile implements git.Repo

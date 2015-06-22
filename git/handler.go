@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"strings"
@@ -41,6 +42,11 @@ type GitRequestHandler struct {
 	repo Repo
 }
 
+// A RefUpdate is a delta for a git reference
+type RefUpdate struct {
+	Name, OldID, NewID string
+}
+
 // NewGitRequestHandler makes a handler for the git protocol
 func NewGitRequestHandler(out Encoder, in Decoder, repo Repo) *GitRequestHandler {
 	return &GitRequestHandler{
@@ -57,16 +63,22 @@ func (h *GitRequestHandler) ServeRequest() error {
 		return err
 	}
 
+	refsReader, err := h.repo.ReadRefs()
+	if err != nil {
+		return err
+	}
+	defer refsReader.Close()
+
+	var refs map[string]string
+	if err := json.NewDecoder(refsReader).Decode(&refs); err != nil {
+		return err
+	}
+
+	if err := h.SendRefs(refs, op); err != nil {
+		return err
+	}
+
 	if op == GitPull {
-		refs, err := h.repo.ReadRefs()
-		if err != nil {
-			return err
-		}
-
-		if err := h.SendRefs(refs, GitPull); err != nil {
-			return err
-		}
-
 		wants, err := h.ReceivePullWants()
 		if err != nil {
 			return err
@@ -90,32 +102,33 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 	} else if op == GitPush {
-		refs, err := h.repo.ReadRefs()
-		if err != nil {
-			return err
-		}
-
-		if err := h.SendRefs(refs, GitPush); err != nil {
-			return err
-		}
-
 		refUpdates, err := h.ReceivePushRefs()
 		if err != nil {
 			return err
 		}
+
 		if len(refUpdates) != 1 {
 			panic("not implemented")
 		}
 
-		if err := h.repo.UpdateRef(refUpdates[0]); err != nil {
+		for _, update := range refUpdates {
+			if update.Name == "refs/heads/master" && update.NewID != "" {
+				refs["HEAD"] = update.NewID
+			}
+			if update.NewID == "" {
+				delete(refs, update.Name)
+			} else {
+				refs[update.Name] = update.NewID
+			}
+		}
+
+		refsJSON, err := json.Marshal(refs)
+		if err != nil {
 			return err
 		}
 
-		if refUpdates[0].Name == "refs/heads/master" && len(refUpdates[0].NewID) > 0 {
-			headUpdate := RefUpdate{Name: "HEAD", NewID: refUpdates[0].NewID}
-			if err := h.repo.UpdateRef(headUpdate); err != nil {
-				return err
-			}
+		if err := h.repo.WriteRefs(bytes.NewBuffer(refsJSON)); err != nil {
+			return err
 		}
 
 		if err := h.repo.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
@@ -146,7 +159,7 @@ func (h *GitRequestHandler) ReceiveHandshake() (GitOperation, error) {
 }
 
 // SendRefs sends the given references to the client
-func (h *GitRequestHandler) SendRefs(refs Refs, op GitOperation) error {
+func (h *GitRequestHandler) SendRefs(refs map[string]string, op GitOperation) error {
 	if len(refs) == 0 {
 		return h.out.Encode(nil)
 	}

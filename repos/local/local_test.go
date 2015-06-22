@@ -42,48 +42,30 @@ var _ = Describe("Local Repo", func() {
 		It("works", func() {
 			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
 			Ω(err).ShouldNot(HaveOccurred())
-			refs, err := repo.ReadRefs()
+			r, err := repo.ReadRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(Equal(git.Refs{
-				"HEAD":              "foobar",
-				"refs/heads/master": "foobar",
-			}))
+			data, err := ioutil.ReadAll(r)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(data).Should(MatchJSON(`{"HEAD":"foobar","refs/heads/master":"foobar"}`))
 		})
 
 		It("returns empty on new repos", func() {
-			refs, err := repo.ReadRefs()
+			r, err := repo.ReadRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(HaveLen(0))
+			data, err := ioutil.ReadAll(r)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(data).Should(Equal([]byte("{}")))
 		})
 	})
 
 	Context("updating refs", func() {
-		It("creates new repos", func() {
-			err := repo.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: "988881adc9fc3655077dc2d4d757d480b5ea0e11"})
+		It("works", func() {
+			jsonData := []byte(`{"refs/heads/master": "988881adc9fc3655077dc2d4d757d480b5ea0e11"}`)
+			err := repo.WriteRefs(bytes.NewBuffer(jsonData))
 			Ω(err).ShouldNot(HaveOccurred())
 			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(MatchJSON(`{"refs/heads/master": "988881adc9fc3655077dc2d4d757d480b5ea0e11"}`))
-		})
-
-		It("handles deletes", func() {
-			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
-			Ω(err).ShouldNot(HaveOccurred())
-			err = repo.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: ""})
-			Ω(err).ShouldNot(HaveOccurred())
-			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(MatchJSON(`{"HEAD": "foobar"}`))
-		})
-
-		It("handles updates", func() {
-			err := ioutil.WriteFile(tmpDir+"/refs.json", []byte(`{"HEAD": "foobar","refs/heads/master":"foobar"}`), 0644)
-			Ω(err).ShouldNot(HaveOccurred())
-			err = repo.UpdateRef(git.RefUpdate{Name: "refs/heads/master", NewID: "barfoo"})
-			Ω(err).ShouldNot(HaveOccurred())
-			data, err := ioutil.ReadFile(tmpDir + "/refs.json")
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(MatchJSON(`{"HEAD": "foobar","refs/heads/master":"barfoo"}`))
+			Ω(data).Should(Equal(jsonData))
 		})
 	})
 

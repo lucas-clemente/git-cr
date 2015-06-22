@@ -23,7 +23,7 @@ type pktlineDecoderWrapper struct {
 }
 
 func fillRepo(b *fixture.FixtureRepo) {
-	b.CurrentRefs = git.Refs{
+	b.CurrentRefs = map[string]string{
 		"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 		"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 	}

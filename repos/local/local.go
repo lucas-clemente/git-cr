@@ -1,7 +1,7 @@
 package local
 
 import (
-	"encoding/json"
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -35,42 +35,26 @@ func (b *localRepo) FindDelta(from, to string) (git.Delta, error) {
 	return filename, nil
 }
 
-func (b *localRepo) ReadRefs() (git.Refs, error) {
-	data, err := ioutil.ReadFile(b.path + "/refs.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return git.Refs{}, nil
-		}
-		return nil, err
+func (b *localRepo) ReadRefs() (io.ReadCloser, error) {
+	r, err := os.Open(b.path + "/refs.json")
+	if os.IsNotExist(err) {
+		return ioutil.NopCloser(bytes.NewBufferString("{}")), nil
 	}
-	var refs git.Refs
-	if err := json.Unmarshal(data, &refs); err != nil {
-		return nil, err
-	}
-	return refs, nil
+	return r, err
 }
 
 func (b *localRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 	return os.Open(d.(string))
 }
 
-func (b *localRepo) UpdateRef(update git.RefUpdate) error {
-	refs, err := b.ReadRefs()
-	if os.IsNotExist(err) {
-		refs = git.Refs{}
-	} else if err != nil {
-		return err
-	}
-	if update.NewID == "" {
-		delete(refs, update.Name)
-	} else {
-		refs[update.Name] = update.NewID
-	}
-	data, err := json.Marshal(refs)
+func (b *localRepo) WriteRefs(r io.Reader) error {
+	file, err := os.Create(b.path + "/refs.json")
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(b.path+"/refs.json", data, 0644)
+	defer file.Close()
+	_, err = io.Copy(file, r)
+	return err
 }
 
 func (b *localRepo) WritePackfile(from, to string, r io.Reader) error {
