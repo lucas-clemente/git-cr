@@ -85,7 +85,7 @@ func decrypt(in io.ReadCloser, key *[32]byte) (io.ReadCloser, error) {
 	}
 
 	if len(data) < 24 {
-		return nil, errors.New("error in encrypted message")
+		return nil, errors.New("encrypted message is too short")
 	}
 	var nonce [24]byte
 	copy(nonce[:], data)
@@ -93,7 +93,7 @@ func decrypt(in io.ReadCloser, key *[32]byte) (io.ReadCloser, error) {
 
 	out, ok := secretbox.Open([]byte{}, data, &nonce, key)
 	if !ok {
-		return nil, errors.New("error verifying encrypted data while reading refs")
+		return nil, errors.New("error verifying encrypted data")
 	}
 	return ioutil.NopCloser(bytes.NewBuffer(out)), nil
 }
