@@ -76,4 +76,13 @@ var _ = Describe("Nacl", func() {
 		})
 
 	})
+
+	Context("encrypting and decrypting packfiles", func() {
+		It("encrypts packfiles", func() {
+			err = repo.WritePackfile("from", "to", bytes.NewBufferString(`foobar`))
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(backend.PackfilesFromTo["from"]["to"]).ShouldNot(HaveLen(0))
+			Ω(backend.PackfilesFromTo["from"]["to"]).ShouldNot(ContainSubstring(`foobar`))
+		})
+	})
 })

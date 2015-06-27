@@ -58,13 +58,11 @@ func (r *naclRepo) ReadRefs() (io.ReadCloser, error) {
 }
 
 func (r *naclRepo) WriteRefs(rdr io.Reader) error {
-	data, err := ioutil.ReadAll(rdr)
+	encryptedRdr, err := encrypt(rdr, &r.key)
 	if err != nil {
 		return err
 	}
-	nonce := makeNonce()
-	out := secretbox.Seal(nonce[:], data, nonce, &r.key)
-	return r.repo.WriteRefs(bytes.NewBuffer(out))
+	return r.repo.WriteRefs(encryptedRdr)
 }
 
 func (r *naclRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
@@ -72,7 +70,21 @@ func (r *naclRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
 }
 
 func (r *naclRepo) WritePackfile(from, to string, rdr io.Reader) error {
-	panic("not implemented")
+	encryptedRdr, err := encrypt(rdr, &r.key)
+	if err != nil {
+		return err
+	}
+	return r.repo.WritePackfile(from, to, encryptedRdr)
+}
+
+func encrypt(in io.Reader, key *[32]byte) (io.Reader, error) {
+	data, err := ioutil.ReadAll(in)
+	if err != nil {
+		return nil, err
+	}
+	nonce := makeNonce()
+	out := secretbox.Seal(nonce[:], data, nonce, key)
+	return bytes.NewBuffer(out), nil
 }
 
 func makeNonce() *[24]byte {
