@@ -36,25 +36,10 @@ func (r *naclRepo) ListAncestors(target string) ([]string, error) {
 
 func (r *naclRepo) ReadRefs() (io.ReadCloser, error) {
 	backendReader, err := r.repo.ReadRefs()
-	defer backendReader.Close()
-
-	data, err := ioutil.ReadAll(backendReader)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(data) < 24 {
-		return nil, errors.New("error in encrypted message")
-	}
-	var nonce [24]byte
-	copy(nonce[:], data)
-	data = data[24:]
-
-	out, ok := secretbox.Open([]byte{}, data, &nonce, &r.key)
-	if !ok {
-		return nil, errors.New("error verifying encrypted data while reading refs")
-	}
-	return ioutil.NopCloser(bytes.NewBuffer(out)), nil
+	return decrypt(backendReader, &r.key)
 }
 
 func (r *naclRepo) WriteRefs(rdr io.Reader) error {
@@ -66,7 +51,11 @@ func (r *naclRepo) WriteRefs(rdr io.Reader) error {
 }
 
 func (r *naclRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
-	panic("not implemented")
+	backendReader, err := r.repo.ReadPackfile(d)
+	if err != nil {
+		return nil, err
+	}
+	return decrypt(backendReader, &r.key)
 }
 
 func (r *naclRepo) WritePackfile(from, to string, rdr io.Reader) error {
@@ -85,6 +74,28 @@ func encrypt(in io.Reader, key *[32]byte) (io.Reader, error) {
 	nonce := makeNonce()
 	out := secretbox.Seal(nonce[:], data, nonce, key)
 	return bytes.NewBuffer(out), nil
+}
+
+func decrypt(in io.ReadCloser, key *[32]byte) (io.ReadCloser, error) {
+	defer in.Close()
+
+	data, err := ioutil.ReadAll(in)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data) < 24 {
+		return nil, errors.New("error in encrypted message")
+	}
+	var nonce [24]byte
+	copy(nonce[:], data)
+	data = data[24:]
+
+	out, ok := secretbox.Open([]byte{}, data, &nonce, key)
+	if !ok {
+		return nil, errors.New("error verifying encrypted data while reading refs")
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(out)), nil
 }
 
 func makeNonce() *[24]byte {
