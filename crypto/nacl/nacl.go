@@ -3,6 +3,7 @@ package nacl
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"io"
 	"io/ioutil"
 
@@ -34,7 +35,26 @@ func (r *naclRepo) ListAncestors(target string) ([]string, error) {
 }
 
 func (r *naclRepo) ReadRefs() (io.ReadCloser, error) {
-	panic("not implemented")
+	backendReader, err := r.repo.ReadRefs()
+	defer backendReader.Close()
+
+	data, err := ioutil.ReadAll(backendReader)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data) < 24 {
+		return nil, errors.New("error in encrypted message")
+	}
+	var nonce [24]byte
+	copy(nonce[:], data)
+	data = data[24:]
+
+	out, ok := secretbox.Open([]byte{}, data, &nonce, &r.key)
+	if !ok {
+		return nil, errors.New("error verifying encrypted data while reading refs")
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(out)), nil
 }
 
 func (r *naclRepo) WriteRefs(rdr io.Reader) error {
