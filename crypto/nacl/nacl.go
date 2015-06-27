@@ -18,8 +18,8 @@ type naclRepo struct {
 	key  [32]byte
 }
 
-// NewNaclRepo returns a git.Repo implementation that encrypts data using nacl
-func NewNaclRepo(backend git.Repo, key [32]byte) (git.Repo, error) {
+// NewNaClRepo returns a git.Repo implementation that encrypts data using nacl
+func NewNaClRepo(backend git.Repo, key [32]byte) (git.Repo, error) {
 	return &naclRepo{
 		repo: backend,
 		key:  key,

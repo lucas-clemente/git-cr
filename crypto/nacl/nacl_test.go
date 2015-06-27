@@ -13,12 +13,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestNacl(t *testing.T) {
+func TestNaCl(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Nacl Suite")
+	RunSpecs(t, "NaCl Suite")
 }
 
-var _ = Describe("Nacl", func() {
+var _ = Describe("NaCl", func() {
 	var (
 		repo    git.Repo
 		backend *fixture.FixtureRepo
@@ -30,7 +30,7 @@ var _ = Describe("Nacl", func() {
 		copy(key[:], "Forty-two, said Deep Thought, with infinite majesty and calm.")
 		Ω(err).ShouldNot(HaveOccurred())
 		backend = fixture.NewFixtureRepo()
-		repo, err = nacl.NewNaclRepo(backend, key)
+		repo, err = nacl.NewNaClRepo(backend, key)
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 
