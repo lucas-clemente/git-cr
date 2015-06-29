@@ -55,7 +55,7 @@ var _ = Describe("Main", func() {
 		remoteDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		remoteURL = "ext::" + pathToGitCR + " %G run " + remoteDir
+		remoteURL = "ext::" + pathToGitCR + " %G run " + "file://" + remoteDir
 	})
 
 	AfterEach(func() {

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 
@@ -64,15 +65,22 @@ func run(c *cli.Context) {
 		os.Exit(1)
 	}
 
-	repoURL := c.Args().First()
+	repoURLString := c.Args().First()
+	repoURL, err := url.Parse(repoURLString)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "an error occured while parsing the URL:\n%v\n", err)
+		os.Exit(1)
+	}
 
 	// Load repo
 
-	repo, err := local.NewLocalRepo(repoURL)
+	repo, err := local.NewLocalRepo(repoURL.Path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while initing the repo:\n%v\n", err)
 		os.Exit(1)
 	}
+
+	// Wrap in packfile merger
 
 	mergedRepo := &merger.Merger{Repo: repo}
 
