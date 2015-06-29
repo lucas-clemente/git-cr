@@ -1,14 +1,17 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/bargez/pktline"
 	"github.com/codegangsta/cli"
+	"github.com/lucas-clemente/git-cr/crypto/nacl"
 	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/merger"
 	"github.com/lucas-clemente/git-cr/repos/local"
@@ -62,11 +65,13 @@ type pktlineDecoderWrapper struct {
 
 func run(c *cli.Context) {
 	if len(c.Args()) != 2 {
-		fmt.Println("dan't run this manually, checkout git cr help :)")
+		fmt.Println("don't run this manually, checkout git cr help :)")
 		os.Exit(1)
 	}
 
-	repoURLString := c.Args().First()
+	repoURLString := c.Args()[0]
+	encryptionSettings := c.Args()[1]
+
 	repoURL, err := url.Parse(repoURLString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while parsing the URL:\n%v\n", err)
@@ -81,16 +86,36 @@ func run(c *cli.Context) {
 		os.Exit(1)
 	}
 
+	// Wrap in encryption
+
+	if encryptionSettings == "none" {
+		// Do nothing
+	} else if strings.HasPrefix(encryptionSettings, "nacl:") {
+		secretB64 := strings.TrimPrefix(encryptionSettings, "nacl:")
+		secret, err := base64.StdEncoding.DecodeString(secretB64)
+		if err != nil || len(secret) != 32 {
+			fmt.Fprintf(os.Stderr, "the nacl secret should be 32 bytes in base64")
+			os.Exit(1)
+		}
+
+		secretArray := [32]byte{}
+		copy(secretArray[:], secret)
+		repo = nacl.NewNaClRepo(repo, secretArray)
+	} else {
+		fmt.Fprintf(os.Stderr, "the encryption settings are invalid")
+		os.Exit(1)
+	}
+
 	// Wrap in packfile merger
 
-	mergedRepo := &merger.Merger{Repo: repo}
+	repo = &merger.Merger{Repo: repo}
 
 	// Handle request
 
 	encoder := pktline.NewEncoder(os.Stdout)
 	decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(os.Stdin), Reader: os.Stdin}
 
-	server := git.NewGitRequestHandler(encoder, decoder, mergedRepo)
+	server := git.NewGitRequestHandler(encoder, decoder, repo)
 	if err := server.ServeRequest(); err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while serving git:\n%v\n", err)
 	}
