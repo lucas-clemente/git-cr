@@ -98,10 +98,10 @@ func (h *GitRequestHandler) ServeRequest() error {
 		}
 
 		deltaReader, err := h.repo.ReadPackfile(deltas[0])
-		defer deltaReader.Close()
 		if err != nil {
 			return err
 		}
+		defer deltaReader.Close()
 
 		if err := h.SendPackfile(deltaReader); err != nil {
 			return err
