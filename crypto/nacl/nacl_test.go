@@ -30,8 +30,7 @@ var _ = Describe("NaCl", func() {
 		copy(key[:], "Forty-two, said Deep Thought, with infinite majesty and calm.")
 		Ω(err).ShouldNot(HaveOccurred())
 		backend = fixture.NewFixtureRepo()
-		repo, err = nacl.NewNaClRepo(backend, key)
-		Ω(err).ShouldNot(HaveOccurred())
+		repo = nacl.NewNaClRepo(backend, key)
 	})
 
 	Context("encrypting and decrypting refs", func() {

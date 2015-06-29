@@ -19,11 +19,11 @@ type naclRepo struct {
 }
 
 // NewNaClRepo returns a git.Repo implementation that encrypts data using nacl
-func NewNaClRepo(backend git.Repo, key [32]byte) (git.Repo, error) {
+func NewNaClRepo(backend git.Repo, key [32]byte) git.Repo {
 	return &naclRepo{
 		repo: backend,
 		key:  key,
-	}, nil
+	}
 }
 
 func (r *naclRepo) FindDelta(from, to string) (git.Delta, error) {
