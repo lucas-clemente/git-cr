@@ -40,13 +40,14 @@ func main() {
 }
 
 func add(c *cli.Context) {
-	if len(c.Args()) != 2 {
-		fmt.Println("usage: git cr add <remote name> <url>")
+	if len(c.Args()) != 3 {
+		fmt.Println("usage: git cr add <remote name> <url> <encryption settings>")
 		os.Exit(1)
 	}
 	remoteName := c.Args()[0]
 	remoteURL := c.Args()[1]
-	cmd := exec.Command("git", "remote", "add", remoteName, buildRemote(remoteURL))
+	encryptionSettings := c.Args()[2]
+	cmd := exec.Command("git", "remote", "add", remoteName, buildRemote(remoteURL, encryptionSettings))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("git errored: %v\n%s", err, out)
@@ -60,8 +61,8 @@ type pktlineDecoderWrapper struct {
 }
 
 func run(c *cli.Context) {
-	if len(c.Args()) != 1 {
-		fmt.Println("don't run this manually, checkout git cr help :)")
+	if len(c.Args()) != 2 {
+		fmt.Println("dan't run this manually, checkout git cr help :)")
 		os.Exit(1)
 	}
 
@@ -96,14 +97,15 @@ func run(c *cli.Context) {
 }
 
 func clone(c *cli.Context) {
-	if len(c.Args()) == 0 {
-		fmt.Println("usage: git cr clone <url> [destination]")
+	if len(c.Args()) < 2 {
+		fmt.Println("usage: git cr clone <url> <encryption settings> [destination]")
 		os.Exit(1)
 	}
 	remoteURL := c.Args()[0]
+	encryptionSettings := c.Args()[1]
 
-	cloneArgs := []string{"clone", buildRemote(remoteURL)}
-	cloneArgs = append(cloneArgs, c.Args()[1:]...)
+	cloneArgs := []string{"clone", buildRemote(remoteURL, encryptionSettings)}
+	cloneArgs = append(cloneArgs, c.Args()[2:]...)
 	cmd := exec.Command("git", cloneArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -112,6 +114,6 @@ func clone(c *cli.Context) {
 	}
 }
 
-func buildRemote(url string) string {
-	return "ext::git cr %G run " + url
+func buildRemote(url, encryptionSettings string) string {
+	return "ext::git cr %G run " + url + " " + encryptionSettings
 }

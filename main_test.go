@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,16 +33,20 @@ func configGit(dir string) {
 
 var _ = Describe("Main", func() {
 	var (
-		workingDir  string
-		remoteDir   string
-		pathToGitCR string
-		remoteURL   string
+		workingDir         string
+		remoteDir          string
+		pathToGitCR        string
+		folderOfGitCR      string
+		remoteURL          string
+		encryptionSettings string
 	)
 
 	BeforeSuite(func() {
 		var err error
 		pathToGitCR, err = gexec.Build("github.com/lucas-clemente/git-cr")
 		Ω(err).ShouldNot(HaveOccurred())
+		folderOfGitCR = filepath.Dir(pathToGitCR)
+		encryptionSettings = "nacl:foobar"
 	})
 
 	AfterSuite(func() {
@@ -55,7 +60,7 @@ var _ = Describe("Main", func() {
 		remoteDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		remoteURL = "ext::" + pathToGitCR + " %G run " + "file://" + remoteDir
+		remoteURL = "ext::" + pathToGitCR + " %G run " + "file://" + remoteDir + " " + encryptionSettings
 	})
 
 	AfterEach(func() {
@@ -68,13 +73,13 @@ var _ = Describe("Main", func() {
 		err := cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
-		runCommandInDir(workingDir, pathToGitCR, "add", "origin", remoteDir)
+		runCommandInDir(workingDir, pathToGitCR, "add", "origin", remoteDir, encryptionSettings)
 
 		cmd = exec.Command("git", "remote", "-v")
 		cmd.Dir = workingDir
 		output, err := cmd.CombinedOutput()
 		Ω(err).ShouldNot(HaveOccurred())
-		Ω(output).Should(ContainSubstring("origin\text::git cr %G run " + remoteDir))
+		Ω(output).Should(ContainSubstring("origin\text::git cr %G run " + remoteDir + " " + encryptionSettings))
 	})
 
 	It("pushes updates", func() {
@@ -100,7 +105,9 @@ var _ = Describe("Main", func() {
 		err = ioutil.WriteFile(remoteDir+"/_f84b0d7375bcb16dd2742344e6af173aeebfcfd6.pack", pack, 0644)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		cmd := exec.Command(pathToGitCR, "clone", remoteDir, workingDir)
+		cmd := exec.Command(pathToGitCR, "clone", remoteDir, encryptionSettings, workingDir)
+		// git-cr needs to be in the PATH to be discovered by the ext:: remote
+		cmd.Env = []string{"PATH=" + folderOfGitCR + ":" + os.Getenv("PATH")}
 		err = cmd.Run()
 		Ω(err).ShouldNot(HaveOccurred())
 
