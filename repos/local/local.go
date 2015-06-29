@@ -1,9 +1,7 @@
 package local
 
 import (
-	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +36,7 @@ func (b *localRepo) FindDelta(from, to string) (git.Delta, error) {
 func (b *localRepo) ReadRefs() (io.ReadCloser, error) {
 	r, err := os.Open(b.path + "/refs.json")
 	if os.IsNotExist(err) {
-		return ioutil.NopCloser(bytes.NewBufferString("{}")), nil
+		return nil, git.ErrorRepoEmpty
 	}
 	return r, err
 }

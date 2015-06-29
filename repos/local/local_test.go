@@ -49,12 +49,9 @@ var _ = Describe("Local Repo", func() {
 			Ω(data).Should(MatchJSON(`{"HEAD":"foobar","refs/heads/master":"foobar"}`))
 		})
 
-		It("returns empty on new repos", func() {
-			r, err := repo.ReadRefs()
-			Ω(err).ShouldNot(HaveOccurred())
-			data, err := ioutil.ReadAll(r)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(data).Should(Equal([]byte("{}")))
+		It("returns proper error on new repos", func() {
+			_, err := repo.ReadRefs()
+			Ω(err).Should(Equal(git.ErrorRepoEmpty))
 		})
 	})
 

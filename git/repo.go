@@ -8,6 +8,9 @@ import (
 // ErrorDeltaNotFound should be returned by Repo implementations
 var ErrorDeltaNotFound = errors.New("delta not found")
 
+// ErrorRepoEmpty should be returned by ReadRefs is a repo is empty
+var ErrorRepoEmpty = errors.New("repo is empty")
+
 // A Delta is the difference between two commits
 type Delta interface{}
 

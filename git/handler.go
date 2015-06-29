@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"strings"
 )
 
@@ -65,7 +66,11 @@ func (h *GitRequestHandler) ServeRequest() error {
 
 	refsReader, err := h.repo.ReadRefs()
 	if err != nil {
-		return err
+		if err == ErrorRepoEmpty {
+			refsReader = ioutil.NopCloser(bytes.NewBufferString("{}"))
+		} else {
+			return err
+		}
 	}
 	defer refsReader.Close()
 

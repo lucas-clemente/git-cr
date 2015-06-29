@@ -20,7 +20,7 @@ var _ git.Repo = &FixtureRepo{}
 // NewFixtureRepo makes a new fixture repo
 func NewFixtureRepo() *FixtureRepo {
 	return &FixtureRepo{
-		CurrentRefs:     []byte("{}"),
+		CurrentRefs:     nil,
 		PackfilesFromTo: map[string]map[string][]byte{"": map[string][]byte{}},
 	}
 }
@@ -54,6 +54,9 @@ func (b *FixtureRepo) FindDelta(from, to string) (git.Delta, error) {
 
 // ReadRefs implements git.Repo
 func (b *FixtureRepo) ReadRefs() (io.ReadCloser, error) {
+	if b.CurrentRefs == nil {
+		return nil, git.ErrorRepoEmpty
+	}
 	return ioutil.NopCloser(bytes.NewBuffer(b.CurrentRefs)), nil
 }
 
