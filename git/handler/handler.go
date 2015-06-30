@@ -91,6 +91,10 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 
+		if len(wants) == 0 {
+			return nil
+		}
+
 		deltas, err := h.NegotiatePullPackfile(wants)
 		if err != nil {
 			return err

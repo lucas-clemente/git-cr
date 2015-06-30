@@ -118,6 +118,13 @@ var _ = Describe("git server", func() {
 			Ω(wants).Should(HaveLen(1))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
 		})
+
+		It("receives empty wants", func() {
+			decoder.setData(nil)
+			wants, err := gitHandler.ReceivePullWants()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(wants).Should(HaveLen(0))
+		})
 	})
 
 	Context("negotiating packfiles", func() {

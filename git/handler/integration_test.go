@@ -132,6 +132,20 @@ var _ = Describe("integration with git", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("baz")))
 		})
+
+		It("pulls nothing", func() {
+			runCommandInDir(tempDir, "git", "pull")
+		})
+
+		It("lists remote refs", func() {
+			cmd := exec.Command("git", "ls-remote")
+			cmd.Dir = tempDir
+			out, err := cmd.CombinedOutput()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(out).Should(ContainSubstring("refs/heads/master"))
+			Ω(out).Should(ContainSubstring("HEAD"))
+			Ω(out).Should(ContainSubstring("f84b0d7375bcb16dd2742344e6af173aeebfcfd6"))
+		})
 	})
 
 	Context("pushing changes", func() {
