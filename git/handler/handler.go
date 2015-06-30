@@ -1,4 +1,4 @@
-package git
+package handler
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+
+	"github.com/lucas-clemente/git-cr/git"
 )
 
 const pullCapabilities = "multi_ack_detailed side-band-64k thin-pack"
@@ -40,7 +42,7 @@ type GitRequestHandler struct {
 	out Encoder
 	in  Decoder
 
-	repo Repo
+	repo git.Repo
 }
 
 // A RefUpdate is a delta for a git reference
@@ -49,7 +51,7 @@ type RefUpdate struct {
 }
 
 // NewGitRequestHandler makes a handler for the git protocol
-func NewGitRequestHandler(out Encoder, in Decoder, repo Repo) *GitRequestHandler {
+func NewGitRequestHandler(out Encoder, in Decoder, repo git.Repo) *GitRequestHandler {
 	return &GitRequestHandler{
 		out:  out,
 		in:   in,
@@ -66,7 +68,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 
 	refsReader, err := h.repo.ReadRefs()
 	if err != nil {
-		if err == ErrorRepoEmpty {
+		if err == git.ErrorRepoEmpty {
 			refsReader = ioutil.NopCloser(bytes.NewBufferString("{}"))
 		} else {
 			return err
@@ -223,10 +225,10 @@ func (h *GitRequestHandler) ReceivePullWants() ([]string, error) {
 
 // NegotiatePullPackfile receives the client's haves and uses the repo
 // to calculate the deltas that should be sent to the client
-func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, error) {
+func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]git.Delta, error) {
 	// multi_ack_detailed implementation
 	var line []byte
-	deltas := []Delta{}
+	deltas := []git.Delta{}
 
 	unfulfilledWants := map[string]bool{}
 	for _, w := range wants {
@@ -266,7 +268,7 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]Delta, erro
 		// Check each unfulfilled want
 		for want := range unfulfilledWants {
 			delta, err := h.repo.FindDelta(have, want)
-			if err == ErrorDeltaNotFound {
+			if err == git.ErrorDeltaNotFound {
 				continue
 			}
 			if err != nil {

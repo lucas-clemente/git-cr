@@ -12,7 +12,7 @@ import (
 	"github.com/bargez/pktline"
 	"github.com/codegangsta/cli"
 	"github.com/lucas-clemente/git-cr/crypto/nacl"
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/handler"
 	"github.com/lucas-clemente/git-cr/git/merger"
 	"github.com/lucas-clemente/git-cr/repos/local"
 )
@@ -115,7 +115,7 @@ func run(c *cli.Context) {
 	encoder := pktline.NewEncoder(os.Stdout)
 	decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(os.Stdin), Reader: os.Stdin}
 
-	server := git.NewGitRequestHandler(encoder, decoder, repo)
+	server := handler.NewGitRequestHandler(encoder, decoder, repo)
 	if err := server.ServeRequest(); err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while serving git:\n%v\n", err)
 	}

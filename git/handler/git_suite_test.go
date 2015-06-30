@@ -1,4 +1,4 @@
-package git_test
+package handler_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestGit(t *testing.T) {
+func TestGitHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Git Suite")
+	RunSpecs(t, "Git Handler Suite")
 }

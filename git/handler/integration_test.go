@@ -1,4 +1,4 @@
-package git_test
+package handler_test
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/bargez/pktline"
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/handler"
 	"github.com/lucas-clemente/git-cr/repos/fixture"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,7 +46,7 @@ var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
 		repo     *fixture.FixtureRepo
-		server   *git.GitRequestHandler
+		server   *handler.GitRequestHandler
 		listener net.Listener
 		port     string
 		mutex    sync.Mutex
@@ -81,7 +81,7 @@ var _ = Describe("integration with git", func() {
 				encoder := pktline.NewEncoder(conn)
 				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
 
-				server = git.NewGitRequestHandler(encoder, decoder, repo)
+				server = handler.NewGitRequestHandler(encoder, decoder, repo)
 				err = server.ServeRequest()
 				if err != nil {
 					fmt.Println("error in integration test: ", err.Error())

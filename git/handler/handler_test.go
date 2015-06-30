@@ -1,4 +1,4 @@
-package git_test
+package handler_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/handler"
 	"github.com/lucas-clemente/git-cr/repos/fixture"
 
 	. "github.com/onsi/ginkgo"
@@ -45,39 +45,39 @@ func (d *sampleEncoder) Encode(b []byte) error {
 
 var _ = Describe("git server", func() {
 	var (
-		decoder *sampleDecoder
-		encoder *sampleEncoder
-		repo    *fixture.FixtureRepo
-		handler *git.GitRequestHandler
+		decoder    *sampleDecoder
+		encoder    *sampleEncoder
+		repo       *fixture.FixtureRepo
+		gitHandler *handler.GitRequestHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
 		repo = fixture.NewFixtureRepo()
-		handler = git.NewGitRequestHandler(encoder, decoder, repo)
+		gitHandler = handler.NewGitRequestHandler(encoder, decoder, repo)
 	})
 
 	Context("decoding client handshake", func() {
 		It("handles pulls", func() {
 			decoder.setData([]byte("git-upload-pack foo\000host=bar"))
-			op, err := handler.ReceiveHandshake()
+			op, err := gitHandler.ReceiveHandshake()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(op).Should(Equal(git.GitPull))
+			Ω(op).Should(Equal(handler.GitPull))
 		})
 
 		It("handles pushes", func() {
 			decoder.setData([]byte("git-receive-pack foo\000host=bar"))
-			op, err := handler.ReceiveHandshake()
+			op, err := gitHandler.ReceiveHandshake()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(op).Should(Equal(git.GitPush))
+			Ω(op).Should(Equal(handler.GitPush))
 		})
 	})
 
 	Context("sending refs", func() {
 		It("sends reflist for pull", func() {
 			refs := map[string]string{"HEAD": "bar", "foo": "bar"}
-			Ω(handler.SendRefs(refs, git.GitPull)).ShouldNot(HaveOccurred())
+			Ω(gitHandler.SendRefs(refs, handler.GitPull)).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000multi_ack_detailed side-band-64k thin-pack")))
 			Ω(encoder.data[1]).Should(Equal([]byte("bar foo")))
@@ -86,7 +86,7 @@ var _ = Describe("git server", func() {
 
 		It("sends reflist for push", func() {
 			refs := map[string]string{"HEAD": "bar", "foo": "bar"}
-			Ω(handler.SendRefs(refs, git.GitPush)).ShouldNot(HaveOccurred())
+			Ω(gitHandler.SendRefs(refs, handler.GitPush)).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("bar HEAD\000delete-refs ofs-delta")))
 			Ω(encoder.data[1]).Should(Equal([]byte("bar foo")))
@@ -101,7 +101,7 @@ var _ = Describe("git server", func() {
 				[]byte("want f1d2d2f924e986ac86fdf7b36c94bcdf32beec15\n"),
 				nil,
 			)
-			wants, err := handler.ReceivePullWants()
+			wants, err := gitHandler.ReceivePullWants()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(wants).Should(HaveLen(2))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
@@ -113,7 +113,7 @@ var _ = Describe("git server", func() {
 				[]byte("want 30f79bec32243c31dd91a05c0ad7b80f1e301aea foobar\n"),
 				nil,
 			)
-			wants, err := handler.ReceivePullWants()
+			wants, err := gitHandler.ReceivePullWants()
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(wants).Should(HaveLen(1))
 			Ω(wants[0]).Should(Equal("30f79bec32243c31dd91a05c0ad7b80f1e301aea"))
@@ -128,7 +128,7 @@ var _ = Describe("git server", func() {
 				[]byte("done\n"),
 			)
 			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(1))
 			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
@@ -147,7 +147,7 @@ var _ = Describe("git server", func() {
 				[]byte("done\n"),
 			)
 			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
@@ -165,7 +165,7 @@ var _ = Describe("git server", func() {
 				[]byte("done"),
 			)
 			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
@@ -184,7 +184,7 @@ var _ = Describe("git server", func() {
 				[]byte("done"),
 			)
 			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
@@ -204,7 +204,7 @@ var _ = Describe("git server", func() {
 				[]byte("done"),
 			)
 			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
@@ -224,7 +224,7 @@ var _ = Describe("git server", func() {
 				[]byte("done"),
 			)
 			wants := []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"}
-			deltas, err := handler.NegotiatePullPackfile(wants)
+			deltas, err := gitHandler.NegotiatePullPackfile(wants)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0]).Should(Equal([]byte("ACK aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1 common")))
@@ -243,7 +243,7 @@ var _ = Describe("git server", func() {
 	Context("sending packfiles", func() {
 		It("sends short packfiles", func() {
 			pack := bytes.NewBufferString("foobar")
-			err := handler.SendPackfile(pack)
+			err := gitHandler.SendPackfile(pack)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("\001foobar")))
@@ -256,7 +256,7 @@ var _ = Describe("git server", func() {
 			for i := range data {
 				data[i] = byte(src.Int63())
 			}
-			err := handler.SendPackfile(bytes.NewBuffer(data))
+			err := gitHandler.SendPackfile(bytes.NewBuffer(data))
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0][0]).Should(Equal(byte(1)))
@@ -271,9 +271,9 @@ var _ = Describe("git server", func() {
 	Context("receiving push refs", func() {
 		It("receives creates", func() {
 			decoder.setData([]byte("0000000000000000000000000000000000000000 f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master\n"), nil)
-			refs, err := handler.ReceivePushRefs()
+			refs, err := gitHandler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+			Ω(refs).Should(Equal([]handler.RefUpdate{handler.RefUpdate{
 				Name:  "refs/heads/master",
 				OldID: "",
 				NewID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
@@ -282,9 +282,9 @@ var _ = Describe("git server", func() {
 
 		It("receives with trailing NUL", func() {
 			decoder.setData([]byte("0000000000000000000000000000000000000000 f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master\000"), nil)
-			refs, err := handler.ReceivePushRefs()
+			refs, err := gitHandler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+			Ω(refs).Should(Equal([]handler.RefUpdate{handler.RefUpdate{
 				Name:  "refs/heads/master",
 				OldID: "",
 				NewID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
@@ -293,9 +293,9 @@ var _ = Describe("git server", func() {
 
 		It("receives updates", func() {
 			decoder.setData([]byte("30f79bec32243c31dd91a05c0ad7b80f1e301aea f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 refs/heads/master\n"), nil)
-			refs, err := handler.ReceivePushRefs()
+			refs, err := gitHandler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+			Ω(refs).Should(Equal([]handler.RefUpdate{handler.RefUpdate{
 				Name:  "refs/heads/master",
 				OldID: "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
 				NewID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
@@ -304,9 +304,9 @@ var _ = Describe("git server", func() {
 
 		It("receives deletes", func() {
 			decoder.setData([]byte("f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 0000000000000000000000000000000000000000 refs/heads/master\n"), nil)
-			refs, err := handler.ReceivePushRefs()
+			refs, err := gitHandler.ReceivePushRefs()
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(refs).Should(Equal([]git.RefUpdate{git.RefUpdate{
+			Ω(refs).Should(Equal([]handler.RefUpdate{handler.RefUpdate{
 				Name:  "refs/heads/master",
 				OldID: "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				NewID: "",

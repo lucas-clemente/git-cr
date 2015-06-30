@@ -1,4 +1,4 @@
-package git
+package handler
 
 // Encoder is used for sending data via pkt-line
 // Sending a `nil` does an ACK.
