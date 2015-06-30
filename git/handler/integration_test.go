@@ -197,6 +197,10 @@ var _ = Describe("integration with git", func() {
 			mutex.Unlock()
 			Ω(repo.CurrentRefs).Should(MatchJSON(`{"refs/heads/master":"f84b0d7375bcb16dd2742344e6af173aeebfcfd6","HEAD":"f84b0d7375bcb16dd2742344e6af173aeebfcfd6","refs/heads/foobar":"f84b0d7375bcb16dd2742344e6af173aeebfcfd6"}`))
 		})
+
+		It("pushes empty updates", func() {
+			runCommandInDir(tempDir, "git", "push", "origin")
+		})
 	})
 
 	Context("pushing into empty repos", func() {

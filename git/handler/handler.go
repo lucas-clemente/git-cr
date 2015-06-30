@@ -118,6 +118,10 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 
+		if len(refUpdates) == 0 {
+			return nil
+		}
+
 		if len(refUpdates) != 1 {
 			panic("not implemented")
 		}
