@@ -108,7 +108,7 @@ func run(c *cli.Context) {
 
 	// Wrap in packfile merger
 
-	repo = &merger.Merger{Repo: repo}
+	repo = merger.NewMerger(repo)
 
 	// Handle request
 

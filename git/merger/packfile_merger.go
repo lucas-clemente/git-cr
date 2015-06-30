@@ -10,16 +10,20 @@ import (
 	"github.com/lucas-clemente/git-cr/git"
 )
 
-// Merger is a wrapper around a git.Repo instance that merges multiple deltas into one.
-// E.g. if a repo knows how to get from A -> B and B -> C, Merger builds a delta from A -> C.
-type Merger struct {
+type merger struct {
 	git.Repo
 }
 
-var _ git.Repo = &Merger{}
+var _ git.Repo = &merger{}
 
-// FindDelta finds a delta as described in Merger doc
-func (m *Merger) FindDelta(from, to string) (git.Delta, error) {
+// NewMerger generates a git.Repo instance that merges multiple deltas into one.
+// E.g. if a repo knows how to get from A -> B and B -> C, merger builds a delta from A -> C.
+func NewMerger(repo git.Repo) git.Repo {
+	return &merger{Repo: repo}
+}
+
+// FindDelta finds a delta as described in merger doc
+func (m *merger) FindDelta(from, to string) (git.Delta, error) {
 	ancestors, err := m.Repo.ListAncestors(to)
 	if err != nil {
 		return nil, err
@@ -48,8 +52,8 @@ func (m *Merger) FindDelta(from, to string) (git.Delta, error) {
 	return nil, git.ErrorDeltaNotFound
 }
 
-// ReadPackfile reads a packfile as described in Merger doc
-func (m *Merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
+// ReadPackfile reads a packfile as described in merger doc
+func (m *merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
 	deltas := delta.(mergerDeltas)
 	var packfiles [][]byte
 
