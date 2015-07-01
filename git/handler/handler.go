@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/merger"
 )
 
 const pullCapabilities = "multi_ack_detailed side-band-64k thin-pack"
@@ -99,17 +100,29 @@ func (h *GitRequestHandler) ServeRequest() error {
 		if err != nil {
 			return err
 		}
-		if len(deltas) != 1 {
-			panic("not implemented")
+
+		// Read and merge all the packfiles
+
+		packfiles := make([][]byte, len(deltas))
+		for i, d := range deltas {
+			rdr, err := h.repo.ReadPackfile(d)
+			if err != nil {
+				return err
+			}
+			defer rdr.Close()
+			data, err := ioutil.ReadAll(rdr)
+			if err != nil {
+				return err
+			}
+			packfiles[i] = data
 		}
 
-		deltaReader, err := h.repo.ReadPackfile(deltas[0])
+		packfile, err := merger.MergePackfiles(packfiles)
 		if err != nil {
 			return err
 		}
-		defer deltaReader.Close()
 
-		if err := h.SendPackfile(deltaReader); err != nil {
+		if err := h.SendPackfile(bytes.NewBuffer(packfile)); err != nil {
 			return err
 		}
 	} else if op == GitPush {

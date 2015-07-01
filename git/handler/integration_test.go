@@ -113,6 +113,17 @@ var _ = Describe("integration with git", func() {
 			mutex.Lock()
 			mutex.Unlock()
 		})
+
+		It("clones multiple references", func() {
+			fillRepo(repo)
+			repo.CurrentRefs = []byte(`{
+				"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+				"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+				"refs/heads/foobar": "226b4f2fd9f8ca09f9abe37612c06fe4527694f5"
+			}`)
+			repo.AddPackfile("", "226b4f2fd9f8ca09f9abe37612c06fe4527694f5", "UEFDSwAAAAIAAAADnAp4nJ3LwQrCMAwA0Hu/IndB0qZpEUQEr/uJtKY6WC1s2f+LsC/w+A7PVlVoyNJCpiKUmrLPSVlFCsVLSl44FXqGLOhkt/dYYdqrbPBYtOvHFK7Lz/d6+DyPG/hInMlTjnDCgOjq6H020/+269vLfQEVLTSCMHicAwAAAAABoAJ4nDM0MDAzMVEoSS0uYXg299HsTRevOXt3a64rj7px6ElP8EQA1EMPGJoJJjoehuEy+kV9XYBCyAkBMpTu")
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
+		})
 	})
 
 	Context("pulling", func() {
@@ -127,6 +138,20 @@ var _ = Describe("integration with git", func() {
 				"refs/heads/master": "1a6d946069d483225913cf3b8ba8eae4c894c322"
 			}`)
 			repo.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
+			runCommandInDir(tempDir, "git", "pull")
+			contents, err := ioutil.ReadFile(tempDir + "/foo")
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(contents).Should(Equal([]byte("baz")))
+		})
+
+		It("pulls updates for multiple refs", func() {
+			repo.CurrentRefs = []byte(`{
+				"HEAD":              "1a6d946069d483225913cf3b8ba8eae4c894c322",
+				"refs/heads/master": "1a6d946069d483225913cf3b8ba8eae4c894c322",
+				"refs/heads/foobar": "226b4f2fd9f8ca09f9abe37612c06fe4527694f5"
+			}`)
+			repo.AddPackfile("f84b0d7375bcb16dd2742344e6af173aeebfcfd6", "1a6d946069d483225913cf3b8ba8eae4c894c322", "UEFDSwAAAAIAAAADlgx4nJXLSwrCMBRG4XlWkbkgSe5NbgpS3Eoef1QwtrQRXL51CU7O4MA3NkDnmqgFT0CSBhIGI0RhmeBCCb5Mk2cbWa1pw2voFjmbKiQ+l2xDrU7YER8oNSuUgNxKq0Gl97gvmx7Yh778esUn9fWJc1n6rC0TG0suOn0yzhh13P4YA38Q1feb+gIlsDr0M3icS0qsAgACZQE+rwF4nDM0MDAzMVFIy89nsJ9qkZYUaGwfv1Tygdym9MuFp+ZUAACUGAuBskz7fFz81Do1iG8hcUrj/ncK63Q=")
+			repo.AddPackfile("", "226b4f2fd9f8ca09f9abe37612c06fe4527694f5", "UEFDSwAAAAIAAAADnAp4nJ3LwQrCMAwA0Hu/IndB0qZpEUQEr/uJtKY6WC1s2f+LsC/w+A7PVlVoyNJCpiKUmrLPSVlFCsVLSl44FXqGLOhkt/dYYdqrbPBYtOvHFK7Lz/d6+DyPG/hInMlTjnDCgOjq6H020/+269vLfQEVLTSCMHicAwAAAAABoAJ4nDM0MDAzMVEoSS0uYXg299HsTRevOXt3a64rj7px6ElP8EQA1EMPGJoJJjoehuEy+kV9XYBCyAkBMpTu")
 			runCommandInDir(tempDir, "git", "pull")
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
