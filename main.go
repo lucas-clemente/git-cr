@@ -11,10 +11,10 @@ import (
 
 	"github.com/bargez/pktline"
 	"github.com/codegangsta/cli"
+	"github.com/lucas-clemente/git-cr/backends/local"
 	"github.com/lucas-clemente/git-cr/crypto/nacl"
+	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
-	"github.com/lucas-clemente/git-cr/git/merger"
-	"github.com/lucas-clemente/git-cr/repos/local"
 )
 
 func main() {
@@ -80,7 +80,7 @@ func run(c *cli.Context) {
 
 	// Load repo
 
-	repo, err := local.NewLocalRepo(repoURL.Path)
+	backend, err := local.NewLocalBackend(repoURL.Path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "an error occured while initing the repo:\n%v\n", err)
 		os.Exit(1)
@@ -100,15 +100,15 @@ func run(c *cli.Context) {
 
 		secretArray := [32]byte{}
 		copy(secretArray[:], secret)
-		repo = nacl.NewNaClRepo(repo, secretArray)
+		backend = nacl.NewNaClBackend(backend, secretArray)
 	} else {
 		fmt.Fprintf(os.Stderr, "the encryption settings are invalid")
 		os.Exit(1)
 	}
 
-	// Wrap in packfile merger
+	// Setup repo
 
-	repo = merger.NewMerger(repo)
+	repo := git.NewJSONRepo(backend)
 
 	// Handle request
 
