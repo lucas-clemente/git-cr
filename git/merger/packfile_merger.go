@@ -22,47 +22,14 @@ func NewMerger(repo git.Repo) git.Repo {
 	return &merger{Repo: repo}
 }
 
-// FindDelta finds a delta as described in merger doc
-func (m *merger) FindDelta(from, to string) (git.Delta, error) {
-	ancestors, err := m.Repo.ListAncestors(to)
-	if err != nil {
-		return nil, err
-	}
-	for _, ancestor := range ancestors {
-		if ancestor == from {
-			delta, err := m.Repo.FindDelta(from, to)
-			if err != nil {
-				return nil, err
-			}
-			return mergerDeltas([]git.Delta{delta}), nil
-		}
-		deltas, err := m.FindDelta(from, ancestor)
-		if err == nil {
-			delta, err := m.Repo.FindDelta(ancestor, to)
-			if err != nil {
-				return nil, err
-			}
-			return append(deltas.(mergerDeltas), delta), nil
-		}
-		if err != git.ErrorDeltaNotFound {
-			return nil, err
-		}
-	}
-
-	return nil, git.ErrorDeltaNotFound
-}
-
-// ReadPackfile reads a packfile as described in merger doc
-func (m *merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
-	deltas := delta.(mergerDeltas)
+func (m *merger) ReadPackfile(fromRev, toRev int) (io.ReadCloser, error) {
 	var packfiles [][]byte
-
-	for _, d := range deltas {
-		reader, err := m.Repo.ReadPackfile(d)
+	for i := fromRev; i < toRev; i++ {
+		rdr, err := m.Repo.ReadPackfile(i, i+1)
 		if err != nil {
 			return nil, err
 		}
-		packfile, err := ioutil.ReadAll(reader)
+		packfile, err := ioutil.ReadAll(rdr)
 		if err != nil {
 			return nil, err
 		}
@@ -75,10 +42,6 @@ func (m *merger) ReadPackfile(delta git.Delta) (io.ReadCloser, error) {
 	}
 	return ioutil.NopCloser(bytes.NewBuffer(packfile)), nil
 }
-
-type mergerDeltas []git.Delta
-
-var _ git.Delta = &mergerDeltas{}
 
 // MergePackfiles merges two packfiles
 func MergePackfiles(packfiles [][]byte) ([]byte, error) {
