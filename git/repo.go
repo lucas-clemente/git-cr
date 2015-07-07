@@ -42,6 +42,9 @@ func NewJSONRepo(backend Backend) Repo {
 func (r *jsonRepo) GetRevisions() ([]Revision, error) {
 	rdr, err := r.backend.ReadBlob("revisions.json")
 	if err != nil {
+		if err == ErrNotFound {
+			return []Revision{}, nil
+		}
 		return nil, err
 	}
 	defer rdr.Close()
