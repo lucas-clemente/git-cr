@@ -11,94 +11,48 @@ import (
 
 // A FixtureRepo for tests
 type FixtureRepo struct {
-	CurrentRefs     []byte
-	PackfilesFromTo map[string]map[string][]byte
+	Revisions []git.Revision
+	Packfiles [][]byte
 }
 
 var _ git.Repo = &FixtureRepo{}
 
 // NewFixtureRepo makes a new fixture repo
 func NewFixtureRepo() *FixtureRepo {
-	return &FixtureRepo{
-		CurrentRefs:     nil,
-		PackfilesFromTo: map[string]map[string][]byte{"": map[string][]byte{}},
-	}
+	return &FixtureRepo{}
 }
 
-// AddPackfile adds a base64-encoded packfile to the repo
-func (b *FixtureRepo) AddPackfile(from, to, b64 string) {
-	m, ok := b.PackfilesFromTo[from]
-	if !ok {
-		b.PackfilesFromTo[from] = map[string][]byte{}
-		m = b.PackfilesFromTo[from]
-	}
-	pack, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		panic("invalid base64 in FixtureRepo.AddPackfile")
-	}
-	m[to] = pack
+// GetRevisions implements git.Repo
+func (r *FixtureRepo) GetRevisions() ([]git.Revision, error) {
+	return r.Revisions, nil
 }
 
-// FindDelta implements git.Repo
-func (b *FixtureRepo) FindDelta(from, to string) (git.Delta, error) {
-	m, ok := b.PackfilesFromTo[from]
-	if !ok {
-		return nil, git.ErrorDeltaNotFound
-	}
-	p, ok := m[to]
-	if !ok {
-		return nil, git.ErrorDeltaNotFound
-	}
-	return ioutil.NopCloser(bytes.NewBuffer(p)), nil
-}
-
-// ReadRefs implements git.Repo
-func (b *FixtureRepo) ReadRefs() (io.ReadCloser, error) {
-	if b.CurrentRefs == nil {
-		return nil, git.ErrorRepoEmpty
-	}
-	return ioutil.NopCloser(bytes.NewBuffer(b.CurrentRefs)), nil
-}
-
-// WriteRefs implements git.Repo
-func (b *FixtureRepo) WriteRefs(r io.Reader) error {
-	data, err := ioutil.ReadAll(r)
+// SaveNewRevision implements git.Repo
+func (r *FixtureRepo) SaveNewRevision(rev git.Revision, packfile io.Reader) error {
+	r.Revisions = append(r.Revisions, rev)
+	data, err := ioutil.ReadAll(packfile)
 	if err != nil {
 		return err
 	}
-	b.CurrentRefs = data
+	r.Packfiles = append(r.Packfiles, data)
 	return nil
 }
 
 // ReadPackfile implements git.Repo
-func (*FixtureRepo) ReadPackfile(d git.Delta) (io.ReadCloser, error) {
-	return d.(io.ReadCloser), nil
+func (r *FixtureRepo) ReadPackfile(fromRev, toRev int) (io.ReadCloser, error) {
+	if toRev != fromRev+1 {
+		panic("merging not supported in fixture repo")
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(r.Packfiles[fromRev])), nil
 }
 
-// WritePackfile implements git.Repo
-func (b *FixtureRepo) WritePackfile(from, to string, r io.Reader) error {
-	data, err := ioutil.ReadAll(r)
+// SaveNewRevisionB64 adds a base64-encoded packfile to the repo
+func (r *FixtureRepo) SaveNewRevisionB64(rev git.Revision, b64 string) {
+	pack, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return err
+		panic("invalid base64 in FixtureRepo.AddPackfile")
 	}
-	m, ok := b.PackfilesFromTo[from]
-	if !ok {
-		b.PackfilesFromTo[from] = map[string][]byte{}
-		m = b.PackfilesFromTo[from]
+	if err := r.SaveNewRevision(rev, bytes.NewBuffer(pack)); err != nil {
+		panic(err)
 	}
-	m[to] = data
-	return nil
-}
-
-// ListAncestors implements git.Repo
-func (b *FixtureRepo) ListAncestors(target string) ([]string, error) {
-	var results []string
-	for from, toMap := range b.PackfilesFromTo {
-		for to := range toMap {
-			if to == target {
-				results = append(results, from)
-			}
-		}
-	}
-	return results, nil
 }
