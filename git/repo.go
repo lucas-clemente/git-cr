@@ -1,27 +1,18 @@
 package git
 
-import (
-	"errors"
-	"io"
-)
+import "io"
 
-// ErrorDeltaNotFound should be returned by Repo implementations
-var ErrorDeltaNotFound = errors.New("delta not found")
-
-// ErrorRepoEmpty should be returned by ReadRefs is a repo is empty
-var ErrorRepoEmpty = errors.New("repo is empty")
-
-// A Delta is the difference between two commits
-type Delta interface{}
+// A Revision is a version of the server's state
+type Revision struct {
+	Refs map[string]string
+}
 
 // A Repo for git data
 type Repo interface {
-	FindDelta(from, to string) (Delta, error)
-	ListAncestors(target string) ([]string, error)
+	// GetRevisions should return all revisions in chronological order
+	GetRevisions() ([]Revision, error)
 
-	ReadRefs() (io.ReadCloser, error)
-	WriteRefs(io.Reader) error
+	SaveNewRevision(rev Revision, packfile io.Reader) error
 
-	ReadPackfile(d Delta) (io.ReadCloser, error)
-	WritePackfile(from, to string, r io.Reader) error
+	ReadPackfile(fromRev, toRev int) (io.ReadCloser, error)
 }
