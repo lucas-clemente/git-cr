@@ -86,6 +86,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 		return err
 	}
 
+	// TODO(lucas): Split up into two functions
 	if op == GitPull {
 		wants, err := h.ReceivePullWants()
 		if err != nil {
@@ -135,10 +136,6 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return nil
 		}
 
-		if len(refUpdates) != 1 {
-			panic("not implemented")
-		}
-
 		for _, update := range refUpdates {
 			if update.Name == "refs/heads/master" && update.NewID != "" {
 				refs["HEAD"] = update.NewID
@@ -159,8 +156,18 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 
-		if err := h.repo.WritePackfile(refUpdates[0].OldID, refUpdates[0].NewID, h.in); err != nil {
+		// Read packfile into buffer
+
+		packfile, err := ioutil.ReadAll(h.in)
+		if err != nil {
 			return err
+		}
+
+		// TODO(lucas): This duplicates packfiles on the storage, maybe we should separate packfiles and their delta info?
+		for _, update := range refUpdates {
+			if err := h.repo.WritePackfile(update.OldID, update.NewID, bytes.NewBuffer(packfile)); err != nil {
+				return err
+			}
 		}
 	} else {
 		panic("unexpected git op")

@@ -201,6 +201,7 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
+			Ω(repo.PackfilesFromTo).Should(HaveLen(2))
 			Ω(repo.PackfilesFromTo["f84b0d7375bcb16dd2742344e6af173aeebfcfd6"]["1a6d946069d483225913cf3b8ba8eae4c894c322"]).ShouldNot(HaveLen(0))
 			Ω(repo.CurrentRefs).Should(MatchJSON(`{"refs/heads/master":"1a6d946069d483225913cf3b8ba8eae4c894c322","HEAD":"1a6d946069d483225913cf3b8ba8eae4c894c322"}`))
 		})

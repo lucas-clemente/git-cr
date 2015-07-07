@@ -98,6 +98,21 @@ var _ = Describe("Main", func() {
 			runCommandInDir(workingDir, "git", "push", "origin", "master")
 		})
 
+		It("pushes new branches", func() {
+			runCommandInDir(workingDir, "git", "init")
+			configGit(workingDir)
+
+			runCommandInDir(workingDir, "git", "remote", "add", "origin", remoteURL())
+
+			err := ioutil.WriteFile(workingDir+"/foo", []byte("foobar"), 0644)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			runCommandInDir(workingDir, "git", "add", "foo")
+			runCommandInDir(workingDir, "git", "commit", "-m", "test")
+			runCommandInDir(workingDir, "git", "push", "origin", "master")
+			runCommandInDir(workingDir, "git", "push", "origin", "master:foobar")
+		})
+
 		It("force-pushes and clones", func() {
 			runCommandInDir(workingDir, "git", "init")
 			configGit(workingDir)
