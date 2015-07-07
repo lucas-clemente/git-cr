@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -67,22 +66,20 @@ func (h *GitRequestHandler) ServeRequest() error {
 		return err
 	}
 
-	refsReader, err := h.repo.ReadRefs()
+	revisions, err := h.repo.GetRevisions()
 	if err != nil {
-		if err == git.ErrorRepoEmpty {
-			refsReader = ioutil.NopCloser(bytes.NewBufferString("{}"))
-		} else {
-			return err
-		}
-	}
-	defer refsReader.Close()
-
-	var refs map[string]string
-	if err := json.NewDecoder(refsReader).Decode(&refs); err != nil {
 		return err
 	}
 
-	if err := h.SendRefs(refs, op); err != nil {
+	currentRevIndex := len(revisions) - 1
+	var currentRev git.Revision
+	if currentRevIndex == -1 {
+		currentRev = git.Revision{}
+	} else {
+		currentRev = revisions[currentRevIndex]
+	}
+
+	if err := h.SendRefs(currentRev, op); err != nil {
 		return err
 	}
 
@@ -97,25 +94,22 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return nil
 		}
 
-		deltas, err := h.NegotiatePullPackfile(wants)
+		fromRev, err := h.NegotiatePullPackfile(revisions)
 		if err != nil {
 			return err
 		}
 
-		// Read and merge all the packfiles
-
-		packfiles := make([][]byte, len(deltas))
-		for i, d := range deltas {
-			rdr, err := h.repo.ReadPackfile(d)
+		packfiles := [][]byte{}
+		for i := fromRev; i <= currentRevIndex; i++ {
+			rdr, err := h.repo.ReadPackfile(i)
 			if err != nil {
 				return err
 			}
-			defer rdr.Close()
-			data, err := ioutil.ReadAll(rdr)
+			packfile, err := ioutil.ReadAll(rdr)
 			if err != nil {
 				return err
 			}
-			packfiles[i] = data
+			packfiles = append(packfiles, packfile)
 		}
 
 		packfile, err := merger.MergePackfiles(packfiles)
@@ -123,7 +117,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 
-		if err := h.SendPackfile(bytes.NewBuffer(packfile)); err != nil {
+		if err := h.SendPackfile(ioutil.NopCloser(bytes.NewBuffer(packfile))); err != nil {
 			return err
 		}
 	} else if op == GitPush {
@@ -136,38 +130,33 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return nil
 		}
 
+		newRevision := git.Revision{}
+		for k, v := range currentRev {
+			newRevision[k] = v
+		}
+
 		for _, update := range refUpdates {
 			if update.Name == "refs/heads/master" && update.NewID != "" {
-				refs["HEAD"] = update.NewID
+				newRevision["HEAD"] = update.NewID
 			}
 			if update.NewID == "" {
-				delete(refs, update.Name)
+				delete(newRevision, update.Name)
 			} else {
-				refs[update.Name] = update.NewID
+				newRevision[update.Name] = update.NewID
 			}
 		}
 
-		refsJSON, err := json.Marshal(refs)
-		if err != nil {
-			return err
-		}
-
-		if err := h.repo.WriteRefs(bytes.NewBuffer(refsJSON)); err != nil {
-			return err
-		}
-
-		// Read packfile into buffer
-
+		// Read packfile
 		packfile, err := ioutil.ReadAll(h.in)
 		if err != nil {
 			return err
 		}
+		if len(packfile) == 0 {
+			packfile = []byte{'P', 'A', 'C', 'K', 0, 0, 0, 2, 0, 0, 0, 0}
+		}
 
-		// TODO(lucas): This duplicates packfiles on the storage, maybe we should separate packfiles and their delta info?
-		for _, update := range refUpdates {
-			if err := h.repo.WritePackfile(update.OldID, update.NewID, bytes.NewBuffer(packfile)); err != nil {
-				return err
-			}
+		if err = h.repo.SaveNewRevision(newRevision, ioutil.NopCloser(bytes.NewBuffer(packfile))); err != nil {
+			return err
 		}
 	} else {
 		panic("unexpected git op")
@@ -253,21 +242,29 @@ func (h *GitRequestHandler) ReceivePullWants() ([]string, error) {
 
 // NegotiatePullPackfile receives the client's haves and uses the repo
 // to calculate the deltas that should be sent to the client
-func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]git.Delta, error) {
+func (h *GitRequestHandler) NegotiatePullPackfile(revisions []git.Revision) (int, error) {
 	// multi_ack_detailed implementation
 	var line []byte
-	deltas := []git.Delta{}
 
-	unfulfilledWants := map[string]bool{}
-	for _, w := range wants {
-		unfulfilledWants[w] = true
+	// Each time we receive a have from a client, we remove it from all revisions.
+	// Once we have an empty revision, we return that to be useed as a base.
+	// revisionCommits has commits in reverse order.
+	revisionCommits := make([]map[string]struct{}, len(revisions))
+	for i, r := range revisions {
+		m := make(map[string]struct{})
+		for _, sha := range r {
+			m[sha] = struct{}{}
+		}
+		revisionCommits[len(revisions)-i-1] = m
 	}
 
 	lastCommon := ""
 
+	result := -1
+
 	for {
 		if err := h.in.Decode(&line); err != nil {
-			return nil, err
+			return 0, err
 		}
 
 		if line == nil {
@@ -285,47 +282,45 @@ func (h *GitRequestHandler) NegotiatePullPackfile(wants []string) ([]git.Delta, 
 		}
 
 		if !bytes.HasPrefix(line, []byte("have ")) {
-			return nil, ErrorInvalidHaveLine
+			return 0, ErrorInvalidHaveLine
 		}
 
 		if len(line) < 45 {
-			return nil, ErrorInvalidHaveLine
+			return 0, ErrorInvalidHaveLine
 		}
 		have := string(line[5:45])
 
-		// Check each unfulfilled want
-		for want := range unfulfilledWants {
-			delta, err := h.repo.FindDelta(have, want)
-			if err == git.ErrorDeltaNotFound {
-				continue
-			}
-			if err != nil {
-				return nil, err
-			}
-			delete(unfulfilledWants, want)
-			deltas = append(deltas, delta)
+		common := false
 
-			if len(unfulfilledWants) != 0 {
-				h.out.Encode([]byte("ACK " + have + " common"))
-				lastCommon = have
+		// Remove have from all revisions
+		for i, commits := range revisionCommits {
+			oldLen := len(commits)
+			delete(commits, have)
+			newLen := len(commits)
+
+			if newLen == 0 {
+				result = len(revisions) - i - 1
+				break
+			} else if newLen != oldLen {
+				common = true
 			}
 		}
 
-		if len(unfulfilledWants) == 0 {
+		if result != -1 {
 			h.out.Encode([]byte("ACK " + have + " ready"))
+			lastCommon = have
+		} else if common {
+			h.out.Encode([]byte("ACK " + have + " common"))
 			lastCommon = have
 		}
 	}
 
-	// Left-over wants need to be delta'd from the beginning
-	for w := range unfulfilledWants {
-		delta, err := h.repo.FindDelta("", w)
-		if err != nil {
-			return nil, err
-		}
-		deltas = append(deltas, delta)
+	if result == -1 {
+		// From the beginning
+		return 0, nil
 	}
-	return deltas, nil
+
+	return result, nil
 }
 
 // SendPackfile sends a packfile using the side-band-64k encoding

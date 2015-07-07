@@ -3,9 +3,7 @@ package git
 import "io"
 
 // A Revision is a version of the server's state
-type Revision struct {
-	Refs map[string]string
-}
+type Revision map[string]string
 
 // A Repo for git data
 type Repo interface {
@@ -14,5 +12,5 @@ type Repo interface {
 
 	SaveNewRevision(rev Revision, packfile io.Reader) error
 
-	ReadPackfile(fromRev, toRev int) (io.ReadCloser, error)
+	ReadPackfile(toRev int) (io.ReadCloser, error)
 }

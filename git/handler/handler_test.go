@@ -3,9 +3,9 @@ package handler_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"math/rand"
 
+	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
 	"github.com/lucas-clemente/git-cr/repos/fixture"
 
@@ -129,121 +129,131 @@ var _ = Describe("git server", func() {
 
 	Context("negotiating packfiles", func() {
 		It("handles full deltas", func() {
-			repo.AddPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				},
+			}
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				[]byte("done\n"),
 			)
-			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(1))
 			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
-			Ω(deltas).Should(HaveLen(1))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
+			Ω(i).Should(Equal(0))
 		})
 
 		It("handles intermediate flushes", func() {
-			repo.AddPackfile("", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				},
+			}
 			decoder.setData(
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				nil,
 				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea\n"),
 				[]byte("done\n"),
 			)
-			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
 			Ω(encoder.data[0]).Should(Equal([]byte("NAK")))
 			Ω(encoder.data[1]).Should(Equal([]byte("NAK")))
-			Ω(deltas).Should(HaveLen(1))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
+			Ω(i).Should(Equal(0))
 		})
 
 		It("handles single have with delta", func() {
-			repo.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				},
+			}
 			decoder.setData(
-				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
+				[]byte("have f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
 				[]byte("done"),
 			)
-			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
-			Ω(encoder.data[1]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea")))
-			Ω(deltas).Should(HaveLen(1))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15")))
+			Ω(i).Should(Equal(0))
 		})
 
 		It("handles single have with delta and followup haves", func() {
-			repo.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				},
+			}
 			decoder.setData(
-				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
+				[]byte("have f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
 				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
 				[]byte("done"),
 			)
-			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 ready")))
 			Ω(encoder.data[1]).Should(Equal([]byte("ACK e242ed3bffccdf271b7fbaf34ed72d089537b42f ready")))
 			Ω(encoder.data[2]).Should(Equal([]byte("ACK e242ed3bffccdf271b7fbaf34ed72d089537b42f")))
-			Ω(deltas).Should(HaveLen(1))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
+			Ω(i).Should(Equal(0))
 		})
 
-		It("handles single have with delta and irrelevant haves", func() {
-			repo.AddPackfile("30f79bec32243c31dd91a05c0ad7b80f1e301aea", "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15", "NDIK")
+		It("handles single have with multiple revisions", func() {
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "103ad77dc08d41c0b7490967903ac276c2b5cfce",
+				},
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+				},
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+					"refs/heads/foobar": "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
+				},
+			}
 			decoder.setData(
-				[]byte("have e242ed3bffccdf271b7fbaf34ed72d089537b42f"),
-				[]byte("have 30f79bec32243c31dd91a05c0ad7b80f1e301aea"),
+				[]byte("have f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
 				[]byte("done"),
 			)
-			wants := []string{"f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(2))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea ready")))
-			Ω(encoder.data[1]).Should(Equal([]byte("ACK 30f79bec32243c31dd91a05c0ad7b80f1e301aea")))
-			Ω(deltas).Should(HaveLen(1))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 ready")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15")))
+			Ω(i).Should(Equal(1))
 		})
 
-		It("handles multiple wants", func() {
-			repo.AddPackfile("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "NDIK")
-			repo.AddPackfile("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2", "MjEK")
+		It("handles multiple haves with multiple revisions", func() {
+			revisions := []git.Revision{
+				git.Revision{
+					"refs/heads/master": "103ad77dc08d41c0b7490967903ac276c2b5cfce",
+				},
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+					"refs/heads/foobar": "d54852cea1ae42ee83c244b23190b03245b62a27",
+				},
+				git.Revision{
+					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+					"refs/heads/foobar": "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
+				},
+			}
 			decoder.setData(
-				[]byte("have aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"),
-				[]byte("have bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1"),
+				[]byte("have f1d2d2f924e986ac86fdf7b36c94bcdf32beec15"),
+				[]byte("have d54852cea1ae42ee83c244b23190b03245b62a27"),
 				[]byte("done"),
 			)
-			wants := []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"}
-			deltas, err := gitHandler.NegotiatePullPackfile(wants)
+			i, err := gitHandler.NegotiatePullPackfile(revisions)
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
-			Ω(encoder.data[0]).Should(Equal([]byte("ACK aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1 common")))
-			Ω(encoder.data[1]).Should(Equal([]byte("ACK bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1 ready")))
-			Ω(encoder.data[2]).Should(Equal([]byte("ACK bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1")))
-			Ω(deltas).Should(HaveLen(2))
-			delta, err := ioutil.ReadAll(deltas[0].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("42\n")))
-			delta, err = ioutil.ReadAll(deltas[1].(io.Reader))
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(delta).Should(Equal([]byte("21\n")))
+			Ω(encoder.data[0]).Should(Equal([]byte("ACK f1d2d2f924e986ac86fdf7b36c94bcdf32beec15 common")))
+			Ω(encoder.data[1]).Should(Equal([]byte("ACK d54852cea1ae42ee83c244b23190b03245b62a27 ready")))
+			Ω(encoder.data[2]).Should(Equal([]byte("ACK d54852cea1ae42ee83c244b23190b03245b62a27")))
+			Ω(i).Should(Equal(1))
 		})
 	})
 

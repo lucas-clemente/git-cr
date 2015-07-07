@@ -39,11 +39,8 @@ func (r *FixtureRepo) SaveNewRevision(rev git.Revision, packfile io.Reader) erro
 }
 
 // ReadPackfile implements git.Repo
-func (r *FixtureRepo) ReadPackfile(fromRev, toRev int) (io.ReadCloser, error) {
-	if toRev != fromRev+1 {
-		panic("merging not supported in fixture repo")
-	}
-	return ioutil.NopCloser(bytes.NewBuffer(r.Packfiles[fromRev])), nil
+func (r *FixtureRepo) ReadPackfile(toRev int) (io.ReadCloser, error) {
+	return ioutil.NopCloser(bytes.NewBuffer(r.Packfiles[toRev])), nil
 }
 
 // SaveNewRevisionB64 adds a base64-encoded packfile to the repo
