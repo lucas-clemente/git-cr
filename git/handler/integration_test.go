@@ -13,7 +13,6 @@ import (
 	"github.com/bargez/pktline"
 	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
-	"github.com/lucas-clemente/git-cr/repos/fixture"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -23,7 +22,7 @@ type pktlineDecoderWrapper struct {
 	io.Reader
 }
 
-func fillRepo(b *fixture.FixtureRepo) {
+func fillRepo(b *FixtureRepo) {
 	b.SaveNewRevisionB64(
 		git.Revision{
 			"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
@@ -48,7 +47,7 @@ func configGit(dir string) {
 var _ = Describe("integration with git", func() {
 	var (
 		tempDir  string
-		repo     *fixture.FixtureRepo
+		repo     *FixtureRepo
 		server   *handler.GitRequestHandler
 		listener net.Listener
 		port     string
@@ -63,7 +62,7 @@ var _ = Describe("integration with git", func() {
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		repo = fixture.NewFixtureRepo()
+		repo = NewFixtureRepo()
 
 		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())

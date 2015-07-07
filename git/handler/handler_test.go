@@ -7,7 +7,6 @@ import (
 
 	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
-	"github.com/lucas-clemente/git-cr/repos/fixture"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -47,14 +46,14 @@ var _ = Describe("git server", func() {
 	var (
 		decoder    *sampleDecoder
 		encoder    *sampleEncoder
-		repo       *fixture.FixtureRepo
+		repo       *FixtureRepo
 		gitHandler *handler.GitRequestHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
-		repo = fixture.NewFixtureRepo()
+		repo = NewFixtureRepo()
 		gitHandler = handler.NewGitRequestHandler(encoder, decoder, repo)
 	})
 
