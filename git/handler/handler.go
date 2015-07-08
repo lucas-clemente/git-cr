@@ -326,7 +326,7 @@ func (h *GitRequestHandler) NegotiatePullPackfile(revisions []git.Revision) (int
 // SendPackfile sends a packfile using the side-band-64k encoding
 func (h *GitRequestHandler) SendPackfile(r io.Reader) error {
 	for {
-		line := make([]byte, 65520)
+		line := make([]byte, 65519)
 		line[0] = 1
 		n, err := r.Read(line[1:])
 		if n != 0 {

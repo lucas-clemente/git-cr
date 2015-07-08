@@ -267,7 +267,7 @@ var _ = Describe("git server", func() {
 		})
 
 		It("sends long packfiles", func() {
-			data := make([]byte, 65519+1)
+			data := make([]byte, 65518+1)
 			src := rand.NewSource(42)
 			for i := range data {
 				data[i] = byte(src.Int63())
@@ -276,10 +276,10 @@ var _ = Describe("git server", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(encoder.data).Should(HaveLen(3))
 			Ω(encoder.data[0][0]).Should(Equal(byte(1)))
-			Ω(encoder.data[0][1:]).Should(HaveLen(65519))
-			Ω(bytes.Equal(encoder.data[0][1:], data[0:65519])).Should(BeTrue())
+			Ω(encoder.data[0][1:]).Should(HaveLen(65518))
+			Ω(bytes.Equal(encoder.data[0][1:], data[0:65518])).Should(BeTrue())
 			Ω(encoder.data[1][0]).Should(Equal(byte(1)))
-			Ω(encoder.data[1][1]).Should(Equal(data[65519]))
+			Ω(encoder.data[1][1]).Should(Equal(data[65518]))
 			Ω(encoder.data[2]).Should(BeNil())
 		})
 	})
