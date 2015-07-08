@@ -268,6 +268,9 @@ var _ = Describe("integration with git", func() {
 
 			runCommandInDir(tempDir, "git", "push", "--all")
 
+			mutex.Lock()
+			mutex.Unlock()
+
 			Ω(repo.Revisions).Should(HaveLen(2))
 			Ω(repo.Packfiles[1]).ShouldNot(HaveLen(0))
 			Ω(repo.Revisions[1]).Should(HaveKey("refs/heads/master"))
