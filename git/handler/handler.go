@@ -152,7 +152,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return err
 		}
 		if len(packfile) == 0 {
-			packfile = []byte{'P', 'A', 'C', 'K', 0, 0, 0, 2, 0, 0, 0, 0}
+			packfile = []byte{'P', 'A', 'C', 'K', 0, 0, 0, 2, 0, 0, 0, 0, 0x02, 0x9d, 0x08, 0x82, 0x3b, 0xd8, 0xa8, 0xea, 0xb5, 0x10, 0xad, 0x6a, 0xc7, 0x5c, 0x82, 0x3c, 0xfd, 0x3e, 0xd3, 0x1e}
 		}
 
 		if err = h.repo.SaveNewRevision(newRevision, ioutil.NopCloser(bytes.NewBuffer(packfile))); err != nil {

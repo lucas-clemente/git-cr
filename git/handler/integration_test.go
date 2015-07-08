@@ -201,20 +201,6 @@ var _ = Describe("integration with git", func() {
 			}))
 		})
 
-		It("pushes deletes", func() {
-			// Push
-			runCommandInDir(tempDir, "git", "push", "origin", ":master")
-			// Verify
-			mutex.Lock()
-			mutex.Unlock()
-
-			Ω(repo.Revisions).Should(HaveLen(2))
-			Ω(repo.Packfiles[1]).ShouldNot(HaveLen(0))
-			Ω(repo.Revisions[1]).Should(Equal(git.Revision{
-				"HEAD": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
-			}))
-		})
-
 		It("pushes new branches", func() {
 			// Push
 			runCommandInDir(tempDir, "git", "push", "origin", "master:foobar")
@@ -229,6 +215,35 @@ var _ = Describe("integration with git", func() {
 				"refs/heads/foobar": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 				"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 			}))
+		})
+
+		It("pushes deletes", func() {
+			// Push
+			runCommandInDir(tempDir, "git", "push", "origin", "master:foobar")
+			runCommandInDir(tempDir, "git", "push", "origin", ":foobar")
+			// Verify
+			mutex.Lock()
+			mutex.Unlock()
+
+			Ω(repo.Revisions).Should(HaveLen(3))
+			Ω(repo.Packfiles[2]).ShouldNot(HaveLen(0))
+			Ω(repo.Revisions[2]).Should(Equal(git.Revision{
+				"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+				"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
+			}))
+
+			// Clone again
+			workingDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
+			Ω(err).ShouldNot(HaveOccurred())
+			defer os.RemoveAll(workingDir2)
+
+			cmd := exec.Command("git", "clone", "git://localhost:"+port+"/repo", workingDir2)
+			err = cmd.Run()
+			Ω(err).ShouldNot(HaveOccurred())
+
+			cmd = exec.Command("git", "branch")
+			cmd.Dir = workingDir2
+			Ω(cmd.CombinedOutput()).Should(Equal([]byte("* master\n")))
 		})
 
 		It("pushes empty updates", func() {
