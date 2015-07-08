@@ -35,6 +35,14 @@ git cr add crypto /path/to/git-cr/repo nacl:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3
 git push crypto master
 ```
 
+### Encryption
+
+The secret for NaCl is a 32 byte base64 encoded string. You can generate a new secret using
+
+```shell
+dd if=/dev/random bs=32 count=1 2> /dev/null |base64
+```
+
 ### Everything else
 
 Just use git!
