@@ -8,6 +8,10 @@ git-cr is a git remote that encrypts all data in a repo (including metadata) cli
 
 Currently git-cr stores your data in encrypted form in a local directory (e.g. in Dropbox, Google Drive, …), but a remote backend might be added soon.
 
+## What's new about git-cr
+
+There are some [tools](https://github.com/shadowhand/git-encrypt) and [tutorials](https://gist.github.com/shadowhand/873637) on how to encrypt single files stored in git. git-cr is different: it encrypts the whole repo, including metadata such as file names, branch names, commit messages. You also don't loose as many git features (e.g. awesome compression and efficient pushes / pulls).
+
 ## Instructions
 
 ### Installation
