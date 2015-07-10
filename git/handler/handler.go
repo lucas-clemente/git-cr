@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/repo"
 	"github.com/lucas-clemente/git-cr/git/merger"
 )
 
@@ -42,7 +42,7 @@ type GitRequestHandler struct {
 	out Encoder
 	in  Decoder
 
-	repo git.Repo
+	repo repo.Repo
 }
 
 // A RefUpdate is a delta for a git reference
@@ -51,7 +51,7 @@ type RefUpdate struct {
 }
 
 // NewGitRequestHandler makes a handler for the git protocol
-func NewGitRequestHandler(out Encoder, in Decoder, repo git.Repo) *GitRequestHandler {
+func NewGitRequestHandler(out Encoder, in Decoder, repo repo.Repo) *GitRequestHandler {
 	return &GitRequestHandler{
 		out:  out,
 		in:   in,
@@ -72,9 +72,9 @@ func (h *GitRequestHandler) ServeRequest() error {
 	}
 
 	currentRevIndex := len(revisions) - 1
-	var currentRev git.Revision
+	var currentRev repo.Revision
 	if currentRevIndex == -1 {
-		currentRev = git.Revision{}
+		currentRev = repo.Revision{}
 	} else {
 		currentRev = revisions[currentRevIndex]
 	}
@@ -130,7 +130,7 @@ func (h *GitRequestHandler) ServeRequest() error {
 			return nil
 		}
 
-		newRevision := git.Revision{}
+		newRevision := repo.Revision{}
 		for k, v := range currentRev {
 			newRevision[k] = v
 		}
@@ -242,7 +242,7 @@ func (h *GitRequestHandler) ReceivePullWants() ([]string, error) {
 
 // NegotiatePullPackfile receives the client's haves and uses the repo
 // to calculate the deltas that should be sent to the client
-func (h *GitRequestHandler) NegotiatePullPackfile(revisions []git.Revision) (int, error) {
+func (h *GitRequestHandler) NegotiatePullPackfile(revisions []repo.Revision) (int, error) {
 	// multi_ack_detailed implementation
 	var line []byte
 

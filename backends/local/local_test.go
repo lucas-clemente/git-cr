@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/lucas-clemente/git-cr/backends/local"
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/repo"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,7 +21,7 @@ func TestLocalRepo(t *testing.T) {
 var _ = Describe("Local Backend", func() {
 	var (
 		tmpDir  string
-		backend git.Backend
+		backend repo.Backend
 	)
 
 	BeforeEach(func() {

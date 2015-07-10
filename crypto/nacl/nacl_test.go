@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/lucas-clemente/git-cr/crypto/nacl"
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/repo"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -35,7 +35,7 @@ func (f fixtureBackend) WriteBlob(name string, r io.Reader) error {
 
 var _ = Describe("NaCl", func() {
 	var (
-		naclBackend git.Backend
+		naclBackend repo.Backend
 		backend     fixtureBackend
 		key         [32]byte
 		err         error

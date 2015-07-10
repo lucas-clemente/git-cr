@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/bargez/pktline"
-	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
+	"github.com/lucas-clemente/git-cr/git/repo"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -24,7 +24,7 @@ type pktlineDecoderWrapper struct {
 
 func fillRepo(b *FixtureRepo) {
 	b.SaveNewRevisionB64(
-		git.Revision{
+		repo.Revision{
 			"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 			"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 		},
@@ -46,12 +46,12 @@ func configGit(dir string) {
 
 var _ = Describe("integration with git", func() {
 	var (
-		tempDir  string
-		repo     *FixtureRepo
-		server   *handler.GitRequestHandler
-		listener net.Listener
-		port     string
-		mutex    sync.Mutex
+		tempDir     string
+		fixtureRepo *FixtureRepo
+		server      *handler.GitRequestHandler
+		listener    net.Listener
+		port        string
+		mutex       sync.Mutex
 	)
 
 	BeforeEach(func() {
@@ -62,7 +62,7 @@ var _ = Describe("integration with git", func() {
 		tempDir, err = ioutil.TempDir("", "io.clemente.git-cr.test")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		repo = NewFixtureRepo()
+		fixtureRepo = NewFixtureRepo()
 
 		listener, err = net.Listen("tcp", "localhost:0")
 		Ω(err).ShouldNot(HaveOccurred())
@@ -83,7 +83,7 @@ var _ = Describe("integration with git", func() {
 				encoder := pktline.NewEncoder(conn)
 				decoder := &pktlineDecoderWrapper{Decoder: pktline.NewDecoder(conn), Reader: conn}
 
-				server = handler.NewGitRequestHandler(encoder, decoder, repo)
+				server = handler.NewGitRequestHandler(encoder, decoder, fixtureRepo)
 				err = server.ServeRequest()
 				if err != nil {
 					fmt.Println("error in integration test: ", err.Error())
@@ -106,8 +106,8 @@ var _ = Describe("integration with git", func() {
 
 	Context("cloning", func() {
 		It("clones using git", func() {
-			fillRepo(repo)
-			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
+			fillRepo(fixtureRepo)
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/fixtureRepo", ".")
 			contents, err := ioutil.ReadFile(tempDir + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(contents).Should(Equal([]byte("bar\n")))
@@ -117,28 +117,28 @@ var _ = Describe("integration with git", func() {
 		})
 
 		It("clones multiple references", func() {
-			fillRepo(repo)
-			repo.SaveNewRevisionB64(
-				git.Revision{
+			fillRepo(fixtureRepo)
+			fixtureRepo.SaveNewRevisionB64(
+				repo.Revision{
 					"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 					"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 					"refs/heads/foobar": "226b4f2fd9f8ca09f9abe37612c06fe4527694f5",
 				},
 				"UEFDSwAAAAIAAAADnAp4nJ3LwQrCMAwA0Hu/IndB0qZpEUQEr/uJtKY6WC1s2f+LsC/w+A7PVlVoyNJCpiKUmrLPSVlFCsVLSl44FXqGLOhkt/dYYdqrbPBYtOvHFK7Lz/d6+DyPG/hInMlTjnDCgOjq6H020/+269vLfQEVLTSCMHicAwAAAAABoAJ4nDM0MDAzMVEoSS0uYXg299HsTRevOXt3a64rj7px6ElP8EQA1EMPGJoJJjoehuEy+kV9XYBCyAkBMpTu",
 			)
-			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/fixtureRepo", ".")
 		})
 	})
 
 	Context("pulling", func() {
 		BeforeEach(func() {
-			fillRepo(repo)
-			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
+			fillRepo(fixtureRepo)
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/fixtureRepo", ".")
 		})
 
 		It("pulls updates", func() {
-			repo.SaveNewRevisionB64(
-				git.Revision{
+			fixtureRepo.SaveNewRevisionB64(
+				repo.Revision{
 					"HEAD":              "1a6d946069d483225913cf3b8ba8eae4c894c322",
 					"refs/heads/master": "1a6d946069d483225913cf3b8ba8eae4c894c322",
 				},
@@ -167,8 +167,8 @@ var _ = Describe("integration with git", func() {
 
 	Context("pushing changes", func() {
 		BeforeEach(func() {
-			fillRepo(repo)
-			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/repo", ".")
+			fillRepo(fixtureRepo)
+			runCommandInDir(tempDir, "git", "clone", "git://localhost:"+port+"/fixtureRepo", ".")
 		})
 
 		It("pushes updates", func() {
@@ -193,9 +193,9 @@ var _ = Describe("integration with git", func() {
 			// Verify
 			mutex.Lock()
 			mutex.Unlock()
-			Ω(repo.Revisions).Should(HaveLen(2))
-			Ω(repo.Packfiles[1]).ShouldNot(HaveLen(0))
-			Ω(repo.Revisions[1]).Should(Equal(git.Revision{
+			Ω(fixtureRepo.Revisions).Should(HaveLen(2))
+			Ω(fixtureRepo.Packfiles[1]).ShouldNot(HaveLen(0))
+			Ω(fixtureRepo.Revisions[1]).Should(Equal(repo.Revision{
 				"refs/heads/master": "1a6d946069d483225913cf3b8ba8eae4c894c322",
 				"HEAD":              "1a6d946069d483225913cf3b8ba8eae4c894c322",
 			}))
@@ -208,9 +208,9 @@ var _ = Describe("integration with git", func() {
 			mutex.Lock()
 			mutex.Unlock()
 
-			Ω(repo.Revisions).Should(HaveLen(2))
-			Ω(repo.Packfiles[1]).ShouldNot(HaveLen(0))
-			Ω(repo.Revisions[1]).Should(Equal(git.Revision{
+			Ω(fixtureRepo.Revisions).Should(HaveLen(2))
+			Ω(fixtureRepo.Packfiles[1]).ShouldNot(HaveLen(0))
+			Ω(fixtureRepo.Revisions[1]).Should(Equal(repo.Revision{
 				"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 				"refs/heads/foobar": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 				"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
@@ -225,9 +225,9 @@ var _ = Describe("integration with git", func() {
 			mutex.Lock()
 			mutex.Unlock()
 
-			Ω(repo.Revisions).Should(HaveLen(3))
-			Ω(repo.Packfiles[2]).ShouldNot(HaveLen(0))
-			Ω(repo.Revisions[2]).Should(Equal(git.Revision{
+			Ω(fixtureRepo.Revisions).Should(HaveLen(3))
+			Ω(fixtureRepo.Packfiles[2]).ShouldNot(HaveLen(0))
+			Ω(fixtureRepo.Revisions[2]).Should(Equal(repo.Revision{
 				"HEAD":              "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 				"refs/heads/master": "f84b0d7375bcb16dd2742344e6af173aeebfcfd6",
 			}))
@@ -237,7 +237,7 @@ var _ = Describe("integration with git", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			defer os.RemoveAll(workingDir2)
 
-			cmd := exec.Command("git", "clone", "git://localhost:"+port+"/repo", workingDir2)
+			cmd := exec.Command("git", "clone", "git://localhost:"+port+"/fixtureRepo", workingDir2)
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 
@@ -248,7 +248,7 @@ var _ = Describe("integration with git", func() {
 
 		It("pushes empty updates", func() {
 			runCommandInDir(tempDir, "git", "push", "origin")
-			Ω(repo.Revisions).Should(HaveLen(1))
+			Ω(fixtureRepo.Revisions).Should(HaveLen(1))
 		})
 
 		It("pushes multiple refs at once", func() {
@@ -271,22 +271,22 @@ var _ = Describe("integration with git", func() {
 			mutex.Lock()
 			mutex.Unlock()
 
-			Ω(repo.Revisions).Should(HaveLen(2))
-			Ω(repo.Packfiles[1]).ShouldNot(HaveLen(0))
-			Ω(repo.Revisions[1]).Should(HaveKey("refs/heads/master"))
-			Ω(repo.Revisions[1]).Should(HaveKey("refs/heads/foobar"))
+			Ω(fixtureRepo.Revisions).Should(HaveLen(2))
+			Ω(fixtureRepo.Packfiles[1]).ShouldNot(HaveLen(0))
+			Ω(fixtureRepo.Revisions[1]).Should(HaveKey("refs/heads/master"))
+			Ω(fixtureRepo.Revisions[1]).Should(HaveKey("refs/heads/foobar"))
 
 			workingDir2, err := ioutil.TempDir("", "io.clemente.git-cr.test")
 			Ω(err).ShouldNot(HaveOccurred())
 			defer os.RemoveAll(workingDir2)
 
-			cmd := exec.Command("git", "clone", "git://localhost:"+port+"/repo", workingDir2)
+			cmd := exec.Command("git", "clone", "git://localhost:"+port+"/fixtureRepo", workingDir2)
 			err = cmd.Run()
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 	})
 
-	Context("pushing into empty repos", func() {
+	Context("pushing into empty fixtureRepos", func() {
 		It("works", func() {
 			runCommandInDir(tempDir, "git", "init")
 			configGit(tempDir)
@@ -296,7 +296,7 @@ var _ = Describe("integration with git", func() {
 
 			runCommandInDir(tempDir, "git", "add", "foo")
 			runCommandInDir(tempDir, "git", "commit", "-m", "test")
-			runCommandInDir(tempDir, "git", "remote", "add", "origin", "git://localhost:"+port+"/repo")
+			runCommandInDir(tempDir, "git", "remote", "add", "origin", "git://localhost:"+port+"/fixtureRepo")
 			runCommandInDir(tempDir, "git", "push", "origin", "master")
 
 			mutex.Lock()
@@ -307,7 +307,7 @@ var _ = Describe("integration with git", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			defer os.RemoveAll(tempDir2)
 
-			err = exec.Command("git", "clone", "git://localhost:"+port+"/repo", tempDir2).Run()
+			err = exec.Command("git", "clone", "git://localhost:"+port+"/fixtureRepo", tempDir2).Run()
 			Ω(err).ShouldNot(HaveOccurred())
 			contents, err := ioutil.ReadFile(tempDir2 + "/foo")
 			Ω(err).ShouldNot(HaveOccurred())

@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/repo"
 )
 
 type localBackend struct {
@@ -12,7 +12,7 @@ type localBackend struct {
 }
 
 // NewLocalBackend returns a backend that stores data in the given path
-func NewLocalBackend(path string) (git.Backend, error) {
+func NewLocalBackend(path string) (repo.Backend, error) {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func NewLocalBackend(path string) (git.Backend, error) {
 func (b *localBackend) ReadBlob(name string) (io.ReadCloser, error) {
 	f, err := os.Open(b.path + "/" + name)
 	if os.IsNotExist(err) {
-		return nil, git.ErrNotFound
+		return nil, repo.ErrNotFound
 	}
 	return f, err
 }

@@ -7,18 +7,18 @@ import (
 	"io"
 	"io/ioutil"
 
-	"golang.org/x/crypto/nacl/secretbox"
+	"github.com/lucas-clemente/git-cr/git/repo"
 
-	"github.com/lucas-clemente/git-cr/git"
+	"golang.org/x/crypto/nacl/secretbox"
 )
 
 type naclBackend struct {
-	backend git.Backend
+	backend repo.Backend
 	key     [32]byte
 }
 
-// NewNaClBackend returns a git.Backend implementation that encrypts data using nacl
-func NewNaClBackend(backend git.Backend, key [32]byte) git.Backend {
+// NewNaClBackend returns a repo.Backend implementation that encrypts data using nacl
+func NewNaClBackend(backend repo.Backend, key [32]byte) repo.Backend {
 	return &naclBackend{
 		backend: backend,
 		key:     key,

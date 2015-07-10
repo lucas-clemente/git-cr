@@ -13,7 +13,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/lucas-clemente/git-cr/backends/local"
 	"github.com/lucas-clemente/git-cr/crypto/nacl"
-	"github.com/lucas-clemente/git-cr/git"
+	"github.com/lucas-clemente/git-cr/git/repo"
 	"github.com/lucas-clemente/git-cr/git/handler"
 )
 
@@ -108,7 +108,7 @@ func run(c *cli.Context) {
 
 	// Setup repo
 
-	repo := git.NewJSONRepo(backend)
+	repo := repo.NewJSONRepo(backend)
 
 	// Handle request
 

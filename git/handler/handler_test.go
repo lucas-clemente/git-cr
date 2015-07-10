@@ -5,8 +5,8 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/lucas-clemente/git-cr/git"
 	"github.com/lucas-clemente/git-cr/git/handler"
+	"github.com/lucas-clemente/git-cr/git/repo"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -44,17 +44,17 @@ func (d *sampleEncoder) Encode(b []byte) error {
 
 var _ = Describe("git server", func() {
 	var (
-		decoder    *sampleDecoder
-		encoder    *sampleEncoder
-		repo       *FixtureRepo
-		gitHandler *handler.GitRequestHandler
+		decoder     *sampleDecoder
+		encoder     *sampleEncoder
+		fixtureRepo *FixtureRepo
+		gitHandler  *handler.GitRequestHandler
 	)
 
 	BeforeEach(func() {
 		decoder = &sampleDecoder{}
 		encoder = &sampleEncoder{data: [][]byte{}}
-		repo = NewFixtureRepo()
-		gitHandler = handler.NewGitRequestHandler(encoder, decoder, repo)
+		fixtureRepo = NewFixtureRepo()
+		gitHandler = handler.NewGitRequestHandler(encoder, decoder, fixtureRepo)
 	})
 
 	Context("decoding client handshake", func() {
@@ -128,8 +128,8 @@ var _ = Describe("git server", func() {
 
 	Context("negotiating packfiles", func() {
 		It("handles full deltas", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				},
 			}
@@ -145,8 +145,8 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles intermediate flushes", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				},
 			}
@@ -165,8 +165,8 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with delta", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				},
 			}
@@ -183,8 +183,8 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with delta and followup haves", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				},
 			}
@@ -203,14 +203,14 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles single have with multiple revisions", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "103ad77dc08d41c0b7490967903ac276c2b5cfce",
 				},
-				git.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 				},
-				git.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 					"refs/heads/foobar": "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
 				},
@@ -228,15 +228,15 @@ var _ = Describe("git server", func() {
 		})
 
 		It("handles multiple haves with multiple revisions", func() {
-			revisions := []git.Revision{
-				git.Revision{
+			revisions := []repo.Revision{
+				repo.Revision{
 					"refs/heads/master": "103ad77dc08d41c0b7490967903ac276c2b5cfce",
 				},
-				git.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 					"refs/heads/foobar": "d54852cea1ae42ee83c244b23190b03245b62a27",
 				},
-				git.Revision{
+				repo.Revision{
 					"refs/heads/master": "f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
 					"refs/heads/foobar": "30f79bec32243c31dd91a05c0ad7b80f1e301aea",
 				},
