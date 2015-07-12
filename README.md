@@ -44,7 +44,7 @@ git push crypto master
 The secret for NaCl is a 32 byte base64 encoded string. You can generate a new secret using
 
 ```shell
-dd if=/dev/random bs=32 count=1 2> /dev/null |base64
+echo -n nacl:; head -c32 /dev/urandom |base64
 ```
 
 ### Everything else
