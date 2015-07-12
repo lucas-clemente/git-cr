@@ -71,7 +71,11 @@ When pulling, git and git-cr first work out the current state of the local git r
 
 ## Is it secure?
 
-I'm not a cryptographer and git-cr was never audited by anyone. So you probably shouldn't trust it for anything critical. However the cryptography in git-cr is pretty [straightforward](crypto/nacl/nacl.go) and uses [NaCl](http://nacl.cr.yp.to). Check it out!
+I'm not a cryptographer and git-cr was never audited by anyone. So you probably shouldn't trust it for anything critical.
+
+git-cr uses the backend to store whole files only. Files can either be git packfiles, or a manifest file containing the git refs for each revision. Each file is encrypted using [NaCl's](http://nacl.cr.yp.to) authenticated encryption `crypto_secretbox`. The key is static and part of the repository URL, while the nonce is generated (using `crypto/rand`) per file and stored prepended to the ciphertext.
+
+The source code for this can be found [here](crypto/nacl/nacl.go). Check it out!
 
 What git-cr does not hide:
 
